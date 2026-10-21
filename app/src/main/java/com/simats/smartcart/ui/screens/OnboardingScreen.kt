@@ -12,11 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
-import androidx.compose.material.icons.automirrored.outlined.TrendingDown
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Headphones
-import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -51,9 +49,9 @@ val onboardingPages = listOf(
         description = "See the differences that actually matter to you—not\njust a longer list of specifications."
     ),
     OnboardingPageData(
-        category = "BUY WITH CONFIDENCE",
-        title = "Shop Smarter\nBuy Better",
-        description = "Get real-time price tracking, AI recommendations,\nand deal alerts for all your favorite stores."
+        category = "A REASON BEHIND EVERY SCORE",
+        title = "Make Confident\nBuying Decisions",
+        description = "Understand the pros, the compromises and the\nvalue before you make your next move."
     )
 )
 
@@ -468,6 +466,7 @@ private fun CardProductComparison(
 @Composable
 private fun OnboardingGraphicPage3() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Background concentric circles
         Box(
             modifier = Modifier
                 .size(280.dp)
@@ -481,78 +480,94 @@ private fun OnboardingGraphicPage3() {
                 .border(1.dp, Color(0xFFE5E8F8), CircleShape)
         )
 
-        // Center Cart Card
-        Column(
+        // Center Reason/Score Card
+        Card(
             modifier = Modifier
-                .size(150.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color.White)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .width(230.dp)
+                .clip(RoundedCornerShape(24.dp)),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Icon(
-                imageVector = Icons.Outlined.ShoppingCart,
-                contentDescription = "Smart Cart",
-                modifier = Modifier.size(64.dp),
-                tint = Color(0xFF5050F0)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "SmartCart AI",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E2135)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                // Top row: BUY badge and Score
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // BUY pill
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFE6F5F0))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = null,
+                            tint = Color(0xFF1A8068),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "BUY",
+                            color = Color(0xFF1A8068),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Score 8.6 /10
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "8.6",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF1E2135)
+                        )
+                        Text(
+                            text = " /10",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF7A8398),
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = Color(0xFFF0F2F8), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Reasons list
+                ReasonBulletItem(text = "Fits your ₹3,000 budget")
+                Spacer(modifier = Modifier.height(10.dp))
+                ReasonBulletItem(text = "Clear calls for classes")
+                Spacer(modifier = Modifier.height(10.dp))
+                ReasonBulletItem(text = "Know the trade-offs")
+            }
         }
 
-        // Deal Badge
-        Row(
+        // Floating Sparkle Badge at Top Right of the card area
+        Box(
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = 12.dp, y = 36.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF1A8068))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .align(Alignment.CenterEnd)
+                .offset(x = (-16).dp, y = (-75).dp)
+                .size(44.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF5050F0)),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.TrendingDown,
+                imageVector = Icons.Outlined.AutoAwesome,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Saved ₹1,200",
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        // Top AI Recommendation Badge
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 24.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.LocalOffer,
-                contentDescription = null,
-                tint = Color(0xFF5050F0),
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Best price across 5 stores",
-                fontSize = 12.sp,
-                color = Color(0xFF1E2135),
-                fontWeight = FontWeight.Medium
+                modifier = Modifier.size(22.dp)
             )
         }
 
@@ -563,6 +578,33 @@ private fun OnboardingGraphicPage3() {
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .offset(y = (-16).dp)
+        )
+    }
+}
+
+@Composable
+private fun ReasonBulletItem(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .border(1.dp, Color(0xFF2E9E82), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Check,
+                contentDescription = null,
+                tint = Color(0xFF2E9E82),
+                modifier = Modifier.size(12.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            color = Color(0xFF1E2135),
+            fontWeight = FontWeight.Medium
         )
     }
 }

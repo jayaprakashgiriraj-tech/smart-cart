@@ -11,8 +11,12 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.simats.smartcart.ui.screens.DiscoverScreen
+import com.simats.smartcart.ui.screens.HomeScreen
 import com.simats.smartcart.ui.screens.LoginScreen
 import com.simats.smartcart.ui.screens.OnboardingScreen
+import com.simats.smartcart.ui.screens.SearchResultsScreen
+import com.simats.smartcart.ui.screens.SearchScreen
 import com.simats.smartcart.ui.screens.SplashScreen
 import com.simats.smartcart.ui.theme.SMARTCARTTheme
 
@@ -48,7 +52,56 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("login") {
-                            LoginScreen()
+                            LoginScreen(
+                                onLoginClick = { _, _ ->
+                                    navController.navigate("home") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                        composable("home") {
+                            HomeScreen(
+                                onTabSelected = { tab ->
+                                    if (tab == 1) {
+                                        navController.navigate("discover")
+                                    }
+                                },
+                                onSearchClick = {
+                                    navController.navigate("search")
+                                }
+                            )
+                        }
+                        composable("discover") {
+                            DiscoverScreen(
+                                onTabSelected = { tab ->
+                                    if (tab == 0) {
+                                        navController.navigate("home") {
+                                            popUpTo("home") { inclusive = true }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        composable("search") {
+                            SearchScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onFindMatchesClick = {
+                                    navController.navigate("search_results")
+                                }
+                            )
+                        }
+                        composable("search_results") {
+                            SearchResultsScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onSeeFullRecommendationsClick = {
+                                    navController.navigate("discover")
+                                }
+                            )
                         }
                     }
                 }
@@ -56,4 +109,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
