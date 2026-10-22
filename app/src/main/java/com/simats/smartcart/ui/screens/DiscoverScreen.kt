@@ -18,18 +18,100 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private data class DiscoverProductItem(
+    val name: String,
+    val brand: String,
+    val price: String,
+    val matchScore: String,
+    val rating: String,
+    val specs: String,
+    val needs: List<String>
+)
+
+private val discoverProducts = listOf(
+    DiscoverProductItem(
+        name = "JBL Tune 510BT",
+        brand = "JBL",
+        price = "₹2,799",
+        matchScore = "92% match",
+        rating = "4.3",
+        specs = "40 hours battery",
+        needs = listOf("Clear calls", "Under ₹3,000", "Work-from-home")
+    ),
+    DiscoverProductItem(
+        name = "Soundcore H30i",
+        brand = "Soundcore",
+        price = "₹2,499",
+        matchScore = "88% match",
+        rating = "4.2",
+        specs = "70 hours battery",
+        needs = listOf("Long battery", "Under ₹3,000", "Work-from-home")
+    ),
+    DiscoverProductItem(
+        name = "boAt Rockerz 450",
+        brand = "boAt",
+        price = "₹1,499",
+        matchScore = "84% match",
+        rating = "4.1",
+        specs = "15 hours battery",
+        needs = listOf("Under ₹3,000", "Travel audio")
+    ),
+    DiscoverProductItem(
+        name = "Sony WH-CH520",
+        brand = "Sony",
+        price = "₹4,490",
+        matchScore = "90% match",
+        rating = "4.4",
+        specs = "50 hours battery",
+        needs = listOf("Clear calls", "Long battery", "Work-from-home")
+    ),
+    DiscoverProductItem(
+        name = "Realme Buds Wireless 3",
+        brand = "Realme",
+        price = "₹1,699",
+        matchScore = "82% match",
+        rating = "4.0",
+        specs = "40 hours battery",
+        needs = listOf("Travel audio", "Under ₹3,000")
+    )
+)
+
 @Composable
 fun DiscoverScreen(
     onTabSelected: (Int) -> Unit = {},
-    onProductClick: (String) -> Unit = {}
+    onProductClick: (String) -> Unit = {},
+    onCompareSelectedClick: (String, String) -> Unit = { _, _ -> }
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedNeedChip by remember { mutableStateOf("Clear calls") }
     var selectedBottomTab by remember { mutableIntStateOf(1) } // 1 is Discover tab
+
+    val filteredProducts = remember(searchQuery, selectedNeedChip) {
+        discoverProducts.filter { product ->
+            val query = searchQuery.trim().lowercase()
+            val matchesSearch = if (query.isEmpty()) {
+                true
+            } else {
+                product.name.lowercase().contains(query) ||
+                product.brand.lowercase().contains(query) ||
+                product.specs.lowercase().contains(query) ||
+                product.needs.any { it.lowercase().contains(query) }
+            }
+
+            val matchesNeed = if (searchQuery.isNotEmpty()) {
+                true
+            } else {
+                product.needs.contains(selectedNeedChip)
+            }
+
+            matchesSearch && matchesNeed
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -130,12 +212,23 @@ fun DiscoverScreen(
                     )
                 },
                 trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Mic,
-                        contentDescription = "Voice Search",
-                        tint = Color(0xFF5050F0),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Clear search",
+                                tint = Color(0xFF5050F0),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Mic,
+                            contentDescription = "Voice Search",
+                            tint = Color(0xFF5050F0),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -246,20 +339,20 @@ fun DiscoverScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Your Audio Shortlist Section
+            // Your Audio Shortlist Section Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Your Audio shortlist",
+                    text = if (searchQuery.isNotEmpty()) "Search results" else "Your Audio shortlist",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E2135)
                 )
                 Text(
-                    text = "3 matches",
+                    text = "${filteredProducts.size} ${if (filteredProducts.size == 1) "match" else "matches"}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF5050F0)
@@ -268,27 +361,67 @@ fun DiscoverScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Shortlist Product Card 1 (Soundcore H30i)
-            ShortlistProductCard(
-                name = "Soundcore H30i",
-                price = "₹2,499",
-                matchScore = "88% match",
-                rating = "4.2",
-                specs = "70 hours battery",
-                onClick = { onProductClick("Soundcore H30i") }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Shortlist Product Card 2 (boAt Rockerz 450)
-            ShortlistProductCard(
-                name = "boAt Rockerz 450",
-                price = "₹1,499",
-                matchScore = "84% match",
-                rating = "4.1",
-                specs = "15 hours battery",
-                onClick = { onProductClick("boAt Rockerz 450") }
-            )
+            // Render Product List or Empty State
+            if (filteredProducts.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFECEFF8))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.SearchOff,
+                            contentDescription = null,
+                            tint = Color(0xFF7A8398),
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No products found",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E2135)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "No matches for \"$searchQuery\". Try searching for \"Sony\", \"boAt\", \"JBL\", or \"Soundcore\".",
+                            fontSize = 12.sp,
+                            color = Color(0xFF7A8398),
+                            textAlign = TextAlign.Center,
+                            lineHeight = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedButton(
+                            onClick = { searchQuery = "" },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFD0D7FF)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF5050F0))
+                        ) {
+                            Text("Clear search", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    filteredProducts.forEach { product ->
+                        ShortlistProductCard(
+                            name = product.name,
+                            price = product.price,
+                            matchScore = product.matchScore,
+                            rating = product.rating,
+                            specs = product.specs,
+                            onClick = { onProductClick(product.name) }
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }

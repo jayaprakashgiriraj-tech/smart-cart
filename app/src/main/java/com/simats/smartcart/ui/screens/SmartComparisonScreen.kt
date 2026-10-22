@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.ProductCatalog
 
 data class SpecRowData(
     val label: String,
@@ -38,20 +39,27 @@ fun SmartComparisonScreen(
     product2Name: String = "Soundcore H30i",
     onBackClick: () -> Unit = {},
     onTabSelected: (Int) -> Unit = {},
-    onSeeSummaryClick: () -> Unit = {}
+    onSeeSummaryClick: (String, String) -> Unit = { _, _ -> }
 ) {
     var selectedBottomTab by remember { mutableIntStateOf(2) } // 2 is Compare tab
 
-    val specRows = listOf(
-        SpecRowData("Battery¹", "40 hours", "70 hours", isBoldValue1 = true),
-        SpecRowData("Call mic²", "Clear indoors", "Mixed in noise", isBoldValue1 = true),
-        SpecRowData("Weight", "160 g", "183 g", isBoldValue1 = true),
-        SpecRowData("Multipoint", "Yes", "Yes"),
-        SpecRowData("Active NC", "No", "No"),
-        SpecRowData("App EQ", "No", "Yes"),
-        SpecRowData("Warranty¹", "1 year", "1 year"),
-        SpecRowData("Value (/10)²", "8.6", "8.2", isHighlighted = true, isBoldValue1 = true)
-    )
+    val product1 = remember(product1Name) { ProductCatalog.getProductByName(product1Name) }
+    val product2 = remember(product2Name) { ProductCatalog.getProductByName(product2Name) }
+
+    val winner = if (product1.matchPercentage >= product2.matchPercentage) product1 else product2
+
+    val specRows = remember(product1, product2) {
+        listOf(
+            SpecRowData("Battery¹", product1.battery, product2.battery, isBoldValue1 = product1.battery != product2.battery),
+            SpecRowData("Call mic²", product1.callMic, product2.callMic, isBoldValue1 = true),
+            SpecRowData("Weight", product1.weight, product2.weight, isBoldValue1 = product1.weight != product2.weight),
+            SpecRowData("Multipoint", product1.multipoint, product2.multipoint),
+            SpecRowData("Active NC", product1.activeNC, product2.activeNC),
+            SpecRowData("App EQ", product1.appEQ, product2.appEQ),
+            SpecRowData("Warranty¹", product1.warranty, product2.warranty),
+            SpecRowData("Value (/10)²", "${product1.valueScore}", "${product2.valueScore}", isHighlighted = true, isBoldValue1 = product1.valueScore >= product2.valueScore)
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -381,7 +389,7 @@ fun SmartComparisonScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onSeeSummaryClick() }
+                    .clickable { onSeeSummaryClick(product1.name, product2.name) }
                     .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

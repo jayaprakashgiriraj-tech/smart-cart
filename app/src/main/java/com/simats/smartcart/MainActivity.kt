@@ -118,6 +118,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onProductClick = { name ->
                                     navController.navigate("product_detail/${Uri.encode(name)}")
+                                },
+                                onCompareSelectedClick = { prod1, prod2 ->
+                                    navController.navigate("compare?prod1=${Uri.encode(prod1)}&prod2=${Uri.encode(prod2)}")
                                 }
                             )
                         }
@@ -240,8 +243,18 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-                        composable("compare") {
+                        composable(
+                            route = "compare?prod1={prod1}&prod2={prod2}",
+                            arguments = listOf(
+                                navArgument("prod1") { type = NavType.StringType; defaultValue = "JBL Tune 510BT" },
+                                navArgument("prod2") { type = NavType.StringType; defaultValue = "Soundcore H30i" }
+                            )
+                        ) { backStackEntry ->
+                            val prod1 = backStackEntry.arguments?.getString("prod1") ?: "JBL Tune 510BT"
+                            val prod2 = backStackEntry.arguments?.getString("prod2") ?: "Soundcore H30i"
                             SmartComparisonScreen(
+                                product1Name = prod1,
+                                product2Name = prod2,
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
@@ -258,13 +271,23 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("profile")
                                     }
                                 },
-                                onSeeSummaryClick = {
-                                    navController.navigate("smarter_choice")
+                                onSeeSummaryClick = { p1: String, p2: String ->
+                                    navController.navigate("smarter_choice?prod1=${Uri.encode(p1)}&prod2=${Uri.encode(p2)}")
                                 }
                             )
                         }
-                        composable("smarter_choice") {
+                        composable(
+                            route = "smarter_choice?prod1={prod1}&prod2={prod2}",
+                            arguments = listOf(
+                                navArgument("prod1") { type = NavType.StringType; defaultValue = "JBL Tune 510BT" },
+                                navArgument("prod2") { type = NavType.StringType; defaultValue = "Soundcore H30i" }
+                            )
+                        ) { backStackEntry ->
+                            val prod1 = backStackEntry.arguments?.getString("prod1") ?: "JBL Tune 510BT"
+                            val prod2 = backStackEntry.arguments?.getString("prod2") ?: "Soundcore H30i"
                             SmarterChoiceScreen(
+                                product1Name = prod1,
+                                product2Name = prod2,
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
