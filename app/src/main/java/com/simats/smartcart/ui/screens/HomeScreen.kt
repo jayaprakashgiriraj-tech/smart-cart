@@ -34,7 +34,8 @@ fun HomeScreen(
     onCategoryClick: (String) -> Unit = {},
     onProductClick: (String) -> Unit = {},
     onCompareClick: () -> Unit = {},
-    onSearchClick: (String) -> Unit = {}
+    onSearchClick: (String) -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedBottomTab by remember { mutableIntStateOf(0) }
