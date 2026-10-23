@@ -276,74 +276,71 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Google Sign In Button
-                OutlinedButton(
-                    onClick = onGoogleSignInClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE8EBF4)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1E2135))
+//                // Google Sign In Button
+//                OutlinedButton(
+//                    onClick = onGoogleSignInClick,
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(48.dp),
+//                    shape = RoundedCornerShape(16.dp),
+//                    border = BorderStroke(1.dp, Color(0xFFE8EBF4)),
+//                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1E2135))
+//                ) {
+//                    Row(verticalAlignment = Alignment.CenterVertically) {
+//                        Box(
+//                            modifier = Modifier
+//                                .size(20.dp)
+//                                .clip(CircleShape)
+//                                .background(Color(0xFFEA4335)),
+//                            contentAlignment = Alignment.Center
+//                        ) {
+//                            Text("G", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+//                        }
+//                        Spacer(modifier = Modifier.width(10.dp))
+//                        Text(
+//                            text = "Google",
+//                            fontSize = 14.sp,
+//                            fontWeight = FontWeight.SemiBold,
+//                            color = Color(0xFF1E2135)
+//                        )
+//                    }
+//                }
+//            }
+//        }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Sign Up Link
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFEA4335)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("G", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Google",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1E2135)
-                        )
-                    }
+                    Text(
+                        text = "New to SmartCart AI? ",
+                        color = Color(0xFF7A8398),
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = "Sign up",
+                        color = Color(0xFF5050F0),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { onSignUpClick() }
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Footer Text
+                Text(
+                    text = "Your preferences stay yours.",
+                    color = Color(0xFF9AA4B8),
+                    fontSize = 11.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Sign Up Link
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "New to SmartCart AI? ",
-                color = Color(0xFF7A8398),
-                fontSize = 13.sp
-            )
-            Text(
-                text = "Sign up",
-                color = Color(0xFF5050F0),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.clickable { onSignUpClick() }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Footer Text
-        Text(
-            text = "Your preferences stay yours.",
-            color = Color(0xFF9AA4B8),
-            fontSize = 11.sp
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    LoginScreen()
 }
