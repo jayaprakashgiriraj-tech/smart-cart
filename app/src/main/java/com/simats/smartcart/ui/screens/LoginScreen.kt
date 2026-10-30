@@ -30,6 +30,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.UserAccountRepository
+import com.simats.smartcart.network.AuthNetworkClient
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -41,6 +44,118 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
+
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var showServerDialog by remember { mutableStateOf(false) }
+    var serverInput by remember { mutableStateOf(AuthNetworkClient.getActiveUrl()) }
+
+    fun handleLogin() {
+        val emailTrim = email.trim()
+        if (emailTrim.isEmpty() || password.isEmpty()) {
+            errorMessage = "Please enter both email and password."
+            return
+        }
+
+        if (!emailTrim.contains("@") || !emailTrim.contains(".")) {
+            errorMessage = "Please enter a valid email address."
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+
+        coroutineScope.launch {
+            val response = AuthNetworkClient.loginUser(emailTrim, password)
+            isLoading = false
+
+            if (response.isSuccess) {
+                errorMessage = null
+                if (response.user != null) {
+                    UserAccountRepository.currentUser = response.user
+                }
+                onLoginClick(emailTrim, password)
+            } else {
+                errorMessage = response.message
+            }
+        }
+    }
+
+    if (showServerDialog) {
+        AlertDialog(
+            onDismissRequest = { showServerDialog = false },
+            title = {
+                Text("Backend Server Settings", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            },
+            text = {
+                Column {
+                    Text(
+                        "Set the base URL for XAMPP backend:",
+                        fontSize = 13.sp,
+                        color = Color(0xFF555555)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = serverInput,
+                        onValueChange = { serverInput = it },
+                        label = { Text("Base URL") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Quick Presets (tap to apply):",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF333333)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "• USB Phone (adb reverse):\n  http://127.0.0.1:8080/smartcart_backend",
+                        fontSize = 11.sp,
+                        color = Color(0xFF5050F0),
+                        modifier = Modifier.clickable {
+                            serverInput = "http://127.0.0.1:8080/smartcart_backend"
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "• Local PC LAN IP:\n  http://172.23.49.142/smartcart_backend",
+                        fontSize = 11.sp,
+                        color = Color(0xFF5050F0),
+                        modifier = Modifier.clickable {
+                            serverInput = "http://172.23.49.142/smartcart_backend"
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "• Android Emulator:\n  http://10.0.2.2/smartcart_backend",
+                        fontSize = 11.sp,
+                        color = Color(0xFF5050F0),
+                        modifier = Modifier.clickable {
+                            serverInput = "http://10.0.2.2/smartcart_backend"
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    AuthNetworkClient.customBaseUrl = serverInput.trim().trimEnd('/')
+                    showServerDialog = false
+                    errorMessage = null
+                }) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showServerDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -230,23 +345,54 @@ fun LoginScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                // Error Message Callout
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = errorMessage!!,
+                        color = Color(0xFFD32F2F),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "⚙️ Configure Backend URL",
+                        color = Color(0xFF5050F0),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable {
+                            serverInput = AuthNetworkClient.getActiveUrl()
+                            showServerDialog = true
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Log In Button
                 Button(
-                    onClick = { onLoginClick(email, password) },
+                    onClick = { handleLogin() },
+                    enabled = !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5050F0)),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(
-                        text = "Log in",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = Color.White,
+                            strokeWidth = 2.5.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Log in",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -274,44 +420,11 @@ fun LoginScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-//                // Google Sign In Button
-//                OutlinedButton(
-//                    onClick = onGoogleSignInClick,
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .height(48.dp),
-//                    shape = RoundedCornerShape(16.dp),
-//                    border = BorderStroke(1.dp, Color(0xFFE8EBF4)),
-//                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF1E2135))
-//                ) {
-//                    Row(verticalAlignment = Alignment.CenterVertically) {
-//                        Box(
-//                            modifier = Modifier
-//                                .size(20.dp)
-//                                .clip(CircleShape)
-//                                .background(Color(0xFFEA4335)),
-//                            contentAlignment = Alignment.Center
-//                        ) {
-//                            Text("G", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-//                        }
-//                        Spacer(modifier = Modifier.width(10.dp))
-//                        Text(
-//                            text = "Google",
-//                            fontSize = 14.sp,
-//                            fontWeight = FontWeight.SemiBold,
-//                            color = Color(0xFF1E2135)
-//                        )
-//                    }
-//                }
-//            }
-//        }
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Sign Up Link
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -329,18 +442,27 @@ fun LoginScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Footer Text
-                Text(
-                    text = "Your preferences stay yours.",
-                    color = Color(0xFF9AA4B8),
-                    fontSize = 11.sp
-                )
+                // Server Status & Change Link
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Server: ${AuthNetworkClient.getActiveUrl()} (Change)",
+                        color = Color(0xFFA0A8B8),
+                        fontSize = 10.sp,
+                        modifier = Modifier.clickable {
+                            serverInput = AuthNetworkClient.getActiveUrl()
+                            showServerDialog = true
+                        }
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
-
     }
 }

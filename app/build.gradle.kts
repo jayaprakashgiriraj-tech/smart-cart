@@ -54,3 +54,23 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+
+tasks.register("adbReverse") {
+    doLast {
+        try {
+            val localAppData = System.getenv("LOCALAPPDATA") ?: ""
+            val adb = "$localAppData\\Android\\Sdk\\platform-tools\\adb.exe"
+            val proc = ProcessBuilder(adb, "reverse", "tcp:8080", "tcp:80").start()
+            proc.waitFor()
+            println("[SmartCart] ADB reverse tcp:8080 tcp:80 executed successfully.")
+        } catch (_: Exception) {
+            try {
+                ProcessBuilder("adb", "reverse", "tcp:8080", "tcp:80").start().waitFor()
+            } catch (_: Exception) {}
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("install") || it.name.startsWith("assemble") }.configureEach {
+    finalizedBy("adbReverse")
+}

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.UserAccountRepository
 
 @Composable
 fun ProfileScreen(
@@ -102,6 +103,17 @@ fun ProfileScreen(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val currentUser = UserAccountRepository.currentUser
+                    val displayName = currentUser?.name ?: "Aarav Mehta"
+                    val displayEmail = currentUser?.email ?: "aarav.mehta@example.com"
+                    val initials = if (displayName.isNotBlank()) {
+                        displayName.split(" ")
+                            .filter { it.isNotBlank() }
+                            .take(2)
+                            .map { it.first().uppercaseChar() }
+                            .joinToString("")
+                    } else "U"
+
                     Box(
                         modifier = Modifier
                             .size(56.dp)
@@ -110,7 +122,7 @@ fun ProfileScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "AM",
+                            text = initials,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF5050F0)
@@ -121,14 +133,14 @@ fun ProfileScreen(
 
                     Column {
                         Text(
-                            text = "Aarav Mehta",
+                            text = displayName,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF1E2135)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "aarav.mehta@example.com · Pune",
+                            text = displayEmail,
                             fontSize = 12.sp,
                             color = Color(0xFF7A8398)
                         )

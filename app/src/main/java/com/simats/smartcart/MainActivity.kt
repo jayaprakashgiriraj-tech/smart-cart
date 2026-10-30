@@ -26,6 +26,7 @@ import com.simats.smartcart.ui.screens.ProductDetailScreen
 import com.simats.smartcart.ui.screens.ProfileScreen
 import com.simats.smartcart.ui.screens.SearchResultsScreen
 import com.simats.smartcart.ui.screens.SearchScreen
+import com.simats.smartcart.ui.screens.SignUpScreen
 import com.simats.smartcart.ui.screens.SavedDecisionsScreen
 import com.simats.smartcart.ui.screens.SmartComparisonScreen
 import com.simats.smartcart.ui.screens.SmarterChoiceScreen
@@ -71,20 +72,45 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("home") {
                                         popUpTo("login") { inclusive = true }
                                     }
+                                },
+                                onSignUpClick = {
+                                    navController.navigate("signup")
+                                }
+                            )
+                        }
+                        composable("signup") {
+                            SignUpScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onLoginClick = {
+                                    navController.navigate("login") {
+                                        popUpTo("signup") { inclusive = true }
+                                    }
+                                },
+                                onSignUpSuccess = { _ ->
+                                    navController.navigate("home") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
                                 }
                             )
                         }
                         composable("home") {
                             HomeScreen(
                                 onTabSelected = { tab ->
-                                    if (tab == 1) {
-                                        navController.navigate("discover")
-                                    } else if (tab == 2) {
-                                        navController.navigate("compare")
-                                    } else if (tab == 3) {
-                                        navController.navigate("saved_decisions")
-                                    } else if (tab == 4) {
-                                        navController.navigate("profile")
+                                    when (tab) {
+                                        1 -> {
+                                            navController.navigate("discover")
+                                        }
+                                        2 -> {
+                                            navController.navigate("compare")
+                                        }
+                                        3 -> {
+                                            navController.navigate("saved_decisions")
+                                        }
+                                        4 -> {
+                                            navController.navigate("profile")
+                                        }
                                     }
                                 },
                                 onSearchClick = {
@@ -104,16 +130,21 @@ class MainActivity : ComponentActivity() {
                         composable("discover") {
                             DiscoverScreen(
                                 onTabSelected = { tab ->
-                                    if (tab == 0) {
-                                        navController.navigate("home") {
-                                            popUpTo("home") { inclusive = true }
+                                    when (tab) {
+                                        0 -> {
+                                            navController.navigate("home") {
+                                                popUpTo("home") { inclusive = true }
+                                            }
                                         }
-                                    } else if (tab == 2) {
-                                        navController.navigate("compare")
-                                    } else if (tab == 3) {
-                                        navController.navigate("saved_decisions")
-                                    } else if (tab == 4) {
-                                        navController.navigate("profile")
+                                        2 -> {
+                                            navController.navigate("compare")
+                                        }
+                                        3 -> {
+                                            navController.navigate("saved_decisions")
+                                        }
+                                        4 -> {
+                                            navController.navigate("profile")
+                                        }
                                     }
                                 },
                                 onProductClick = { name ->
@@ -259,16 +290,21 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                 },
                                 onTabSelected = { tab ->
-                                    if (tab == 0) {
-                                        navController.navigate("home") {
-                                            popUpTo("home") { inclusive = true }
+                                    when (tab) {
+                                        0 -> {
+                                            navController.navigate("home") {
+                                                popUpTo("home") { inclusive = true }
+                                            }
                                         }
-                                    } else if (tab == 1) {
-                                        navController.navigate("discover")
-                                    } else if (tab == 3) {
-                                        navController.navigate("saved_decisions")
-                                    } else if (tab == 4) {
-                                        navController.navigate("profile")
+                                        1 -> {
+                                            navController.navigate("discover")
+                                        }
+                                        3 -> {
+                                            navController.navigate("saved_decisions")
+                                        }
+                                        4 -> {
+                                            navController.navigate("profile")
+                                        }
                                     }
                                 },
                                 onSeeSummaryClick = { p1: String, p2: String ->
@@ -292,16 +328,21 @@ class MainActivity : ComponentActivity() {
                                     navController.popBackStack()
                                 },
                                 onTabSelected = { tab ->
-                                    if (tab == 0) {
-                                        navController.navigate("home") {
-                                            popUpTo("home") { inclusive = true }
+                                    when (tab) {
+                                        0 -> {
+                                            navController.navigate("home") {
+                                                popUpTo("home") { inclusive = true }
+                                            }
                                         }
-                                    } else if (tab == 1) {
-                                        navController.navigate("discover")
-                                    } else if (tab == 3) {
-                                        navController.navigate("saved_decisions")
-                                    } else if (tab == 4) {
-                                        navController.navigate("profile")
+                                        1 -> {
+                                            navController.navigate("discover")
+                                        }
+                                        3 -> {
+                                            navController.navigate("saved_decisions")
+                                        }
+                                        4 -> {
+                                            navController.navigate("profile")
+                                        }
                                     }
                                 },
                                 onViewDetailsClick = { name ->
@@ -315,16 +356,21 @@ class MainActivity : ComponentActivity() {
                         composable("saved_decisions") {
                             SavedDecisionsScreen(
                                 onTabSelected = { tab ->
-                                    if (tab == 0) {
-                                        navController.navigate("home") {
-                                            popUpTo("home") { inclusive = true }
+                                    when (tab) {
+                                        0 -> {
+                                            navController.navigate("home") {
+                                                popUpTo("home") { inclusive = true }
+                                            }
                                         }
-                                    } else if (tab == 1) {
-                                        navController.navigate("discover")
-                                    } else if (tab == 2) {
-                                        navController.navigate("compare")
-                                    } else if (tab == 4) {
-                                        navController.navigate("profile")
+                                        1 -> {
+                                            navController.navigate("discover")
+                                        }
+                                        2 -> {
+                                            navController.navigate("compare")
+                                        }
+                                        4 -> {
+                                            navController.navigate("profile")
+                                        }
                                     }
                                 },
                                 onCompareClick = {
@@ -341,16 +387,21 @@ class MainActivity : ComponentActivity() {
                         composable("profile") {
                             ProfileScreen(
                                 onTabSelected = { tab ->
-                                    if (tab == 0) {
-                                        navController.navigate("home") {
-                                            popUpTo("home") { inclusive = true }
+                                    when (tab) {
+                                        0 -> {
+                                            navController.navigate("home") {
+                                                popUpTo("home") { inclusive = true }
+                                            }
                                         }
-                                    } else if (tab == 1) {
-                                        navController.navigate("discover")
-                                    } else if (tab == 2) {
-                                        navController.navigate("compare")
-                                    } else if (tab == 3) {
-                                        navController.navigate("saved_decisions")
+                                        1 -> {
+                                            navController.navigate("discover")
+                                        }
+                                        2 -> {
+                                            navController.navigate("compare")
+                                        }
+                                        3 -> {
+                                            navController.navigate("saved_decisions")
+                                        }
                                     }
                                 },
                                 onShoppingHistoryClick = {
