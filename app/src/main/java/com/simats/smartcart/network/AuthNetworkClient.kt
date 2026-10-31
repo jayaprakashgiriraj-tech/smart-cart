@@ -5,8 +5,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.File
+import java.io.FileInputStream
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
+import java.io.PrintWriter
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -70,6 +73,81 @@ object AuthNetworkClient {
                 put("new_password", newPassword)
             }
             executeWithFallback("auth/reset_password.php", jsonParam)
+        }
+    }
+
+    suspend fun updateProfile(name: String, email: String): AuthResponse {
+        return withContext(Dispatchers.IO) {
+            val jsonParam = JSONObject().apply {
+                put("email", email.trim())
+                put("name", name.trim())
+            }
+            executeWithFallback("auth/update_profile.php", jsonParam)
+        }
+    }
+
+    suspend fun uploadProfilePhoto(email: String, file: File): AuthResponse {
+        return withContext(Dispatchers.IO) {
+            val preferred = customBaseUrl ?: detectedBaseUrl ?: CANDIDATE_URLS.first()
+            val urlString = "$preferred/auth/upload_profile.php"
+            try {
+                val boundary = "===Boundary===" + System.currentTimeMillis()
+                val url = URL(urlString)
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.doInput = true
+                conn.useCaches = false
+                conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+                conn.connectTimeout = 4000
+                conn.readTimeout = 6000
+
+                val outputStream = conn.outputStream
+                val writer = PrintWriter(OutputStreamWriter(outputStream, "UTF-8"), true)
+
+                // email field
+                writer.append("--$boundary\r\n")
+                writer.append("Content-Disposition: form-data; name=\"email\"\r\n\r\n")
+                writer.append(email.trim()).append("\r\n")
+                writer.flush()
+
+                // profile_image file field
+                writer.append("--$boundary\r\n")
+                writer.append("Content-Disposition: form-data; name=\"profile_image\"; filename=\"${file.name}\"\r\n")
+                writer.append("Content-Type: image/jpeg\r\n\r\n")
+                writer.flush()
+
+                val fileInputStream = FileInputStream(file)
+                val buffer = ByteArray(4096)
+                var bytesRead: Int
+                while (fileInputStream.read(buffer).also { bytesRead = it } != -1) {
+                    outputStream.write(buffer, 0, bytesRead)
+                }
+                outputStream.flush()
+                fileInputStream.close()
+
+                writer.append("\r\n").flush()
+                writer.append("--$boundary--\r\n").flush()
+                writer.close()
+
+                val responseCode = conn.responseCode
+                val stream = if (responseCode in 200..299) conn.inputStream else conn.errorStream ?: conn.inputStream
+                val reader = BufferedReader(InputStreamReader(stream, "UTF-8"))
+                val raw = reader.readText().trim()
+                reader.close()
+                conn.disconnect()
+
+                if (raw.isNotEmpty()) {
+                    val json = JSONObject(raw)
+                    val isSuccess = json.optBoolean("success", false)
+                    val message = json.optString("message", if (isSuccess) "Photo uploaded" else "Upload failed")
+                    AuthResponse(isSuccess = isSuccess, message = message)
+                } else {
+                    AuthResponse(isSuccess = false, message = "Empty response from server")
+                }
+            } catch (e: Exception) {
+                AuthResponse(isSuccess = false, message = e.message ?: "Upload connection failed")
+            }
         }
     }
 

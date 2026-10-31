@@ -1,6 +1,8 @@
 package com.simats.smartcart.ui.screens
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,12 +20,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.UserAccountRepository
+import java.io.File
 
 @Composable
 fun ProfileScreen(
@@ -101,12 +106,25 @@ fun ProfileScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clickable { onEditProfileClick() }
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val currentUser = UserAccountRepository.currentUser
-                    val displayName = currentUser?.name ?: "Aarav Mehta"
-                    val displayEmail = currentUser?.email ?: "aarav.mehta@example.com"
+                    val displayName = currentUser?.name ?: "Jayaprakash G"
+                    val displayEmail = currentUser?.email ?: "jayaprakashgiriraj@gmail.com"
+                    val photoBitmap = remember(currentUser?.profilePhoto) {
+                        val path = currentUser?.profilePhoto
+                        if (!path.isNullOrBlank()) {
+                            try {
+                                val f = File(path)
+                                if (f.exists()) BitmapFactory.decodeFile(f.absolutePath) else null
+                            } catch (_: Exception) {
+                                null
+                            }
+                        } else null
+                    }
+
                     val initials = if (displayName.isNotBlank()) {
                         displayName.split(" ")
                             .filter { it.isNotBlank() }
@@ -115,24 +133,36 @@ fun ProfileScreen(
                             .joinToString("")
                     } else "U"
 
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFF2F4FF)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = initials,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF5050F0)
+                    if (photoBitmap != null) {
+                        Image(
+                            bitmap = photoBitmap.asImageBitmap(),
+                            contentDescription = "Profile Photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, Color(0xFF5050F0), CircleShape)
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF2F4FF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = initials,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF5050F0)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(14.dp))
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = displayName,
                             fontSize = 16.sp,
@@ -146,12 +176,30 @@ fun ProfileScreen(
                             color = Color(0xFF7A8398)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Illustrative account · Edit profile",
-                            fontSize = 11.sp,
-                            color = Color(0xFF5050F0),
-                            fontWeight = FontWeight.Medium,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable { onEditProfileClick() }
+                        ) {
+                            Text(
+                                text = "Illustrative account · ",
+                                fontSize = 11.sp,
+                                color = Color(0xFF7A8398)
+                            )
+                            Text(
+                                text = "Edit profile",
+                                fontSize = 11.sp,
+                                color = Color(0xFF5050F0),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    IconButton(onClick = onEditProfileClick) {
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Edit Profile",
+                            tint = Color(0xFF5050F0),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

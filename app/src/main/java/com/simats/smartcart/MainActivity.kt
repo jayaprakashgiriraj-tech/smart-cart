@@ -16,6 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.simats.smartcart.ui.screens.AiReviewAnalyzerScreen
 import com.simats.smartcart.ui.screens.DiscoverScreen
+import com.simats.smartcart.ui.screens.EditProfileScreen
 import com.simats.smartcart.ui.screens.ForgotPasswordScreen
 import com.simats.smartcart.ui.screens.FullProductOverviewScreen
 import com.simats.smartcart.ui.screens.HomeScreen
@@ -436,6 +437,19 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onPrivacyAndDataClick = {
                                     navController.navigate("ui_kit")
+                                },
+                                onEditProfileClick = {
+                                    navController.navigate("edit_profile")
+                                }
+                            )
+                        }
+                        composable("edit_profile") {
+                            EditProfileScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onSaveSuccess = {
+                                    navController.popBackStack()
                                 }
                             )
                         }

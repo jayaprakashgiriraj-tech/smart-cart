@@ -10,11 +10,11 @@ data class UserAccount(
 
 object UserAccountRepository {
     private val registeredUsers = mutableListOf(
-        UserAccount(10, "Aarav Mehta", "aarav.mehta@example.com", null, "password123"),
+        UserAccount(10, "Jayaprakash G", "jayaprakashgiriraj@gmail.com", null, "password123"),
         UserAccount(11, "Demo User", "you@example.com", null, "password123")
     )
 
-    var currentUser: UserAccount? = UserAccount(10, "Aarav Mehta", "aarav.mehta@example.com", null, "password123")
+    var currentUser: UserAccount? = UserAccount(10, "Jayaprakash G", "jayaprakashgiriraj@gmail.com", null, "password123")
 
     fun isEmailRegistered(email: String): Boolean {
         return registeredUsers.any { it.email.equals(email.trim(), ignoreCase = true) }
