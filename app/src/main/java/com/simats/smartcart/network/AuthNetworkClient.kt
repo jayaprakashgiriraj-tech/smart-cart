@@ -63,6 +63,16 @@ object AuthNetworkClient {
         }
     }
 
+    suspend fun resetPassword(email: String, newPassword: String): AuthResponse {
+        return withContext(Dispatchers.IO) {
+            val jsonParam = JSONObject().apply {
+                put("email", email.trim())
+                put("new_password", newPassword)
+            }
+            executeWithFallback("auth/reset_password.php", jsonParam)
+        }
+    }
+
     private fun executeWithFallback(relativeEndpoint: String, jsonParam: JSONObject): AuthResponse {
         // If a manual or previously detected working URL exists, try it first
         val preferred = customBaseUrl ?: detectedBaseUrl

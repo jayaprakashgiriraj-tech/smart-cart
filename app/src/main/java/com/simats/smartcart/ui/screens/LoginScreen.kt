@@ -341,7 +341,9 @@ fun LoginScreen(
                         color = Color(0xFF5050F0),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { onForgotPasswordClick() }
+                        modifier = Modifier
+                            .clickable { onForgotPasswordClick() }
+                            .padding(vertical = 6.dp, horizontal = 4.dp)
                     )
                 }
 

@@ -166,7 +166,6 @@ fun SavedDecisionsScreen(
                 priceDropChecked = priceDropJbl,
                 onPriceDropChange = {
                     priceDropJbl = it
-                    onPriceDropClick("JBL Tune 510BT")
                 },
                 onPriceDropClick = { onPriceDropClick("JBL Tune 510BT") },
                 onCompareClick = onCompareClick
@@ -184,7 +183,6 @@ fun SavedDecisionsScreen(
                 priceDropChecked = priceDropSoundcore,
                 onPriceDropChange = {
                     priceDropSoundcore = it
-                    onPriceDropClick("Soundcore H30i")
                 },
                 onPriceDropClick = { onPriceDropClick("Soundcore H30i") },
                 onCompareClick = onCompareClick
@@ -411,8 +409,7 @@ private fun WishlistItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onPriceDropClick() }
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Switch(
                         checked = priceDropChecked,
@@ -429,8 +426,9 @@ private fun WishlistItemCard(
                     Text(
                         text = "Price drops",
                         fontSize = 11.sp,
-                        color = Color(0xFF1E2135),
-                        fontWeight = FontWeight.Medium
+                        color = Color(0xFF5050F0),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { onPriceDropClick() }
                     )
                 }
 

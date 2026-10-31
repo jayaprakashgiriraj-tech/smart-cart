@@ -31,7 +31,8 @@ fun ProfileScreen(
     onShoppingHistoryClick: () -> Unit = {},
     onSavedComparisonsClick: () -> Unit = {},
     onEditPreferencesClick: () -> Unit = {},
-    onPrivacyAndDataClick: () -> Unit = {}
+    onPrivacyAndDataClick: () -> Unit = {},
+    onEditProfileClick: () -> Unit = {}
 ) {
     var selectedCategoryTab by remember { mutableIntStateOf(0) } // 0: Audio, 1: Mobiles, 2: Laptops
     var selectedBottomTab by remember { mutableIntStateOf(4) } // 4 is Profile tab
@@ -150,7 +151,7 @@ fun ProfileScreen(
                             fontSize = 11.sp,
                             color = Color(0xFF5050F0),
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.clickable { onEditPreferencesClick() }
+                            modifier = Modifier.clickable { onEditProfileClick() }
                         )
                     }
                 }
@@ -333,7 +334,7 @@ fun ProfileScreen(
                         icon = Icons.Outlined.PersonOutline,
                         title = "Account settings",
                         subtitle = "Security, sign-in and account removal",
-                        onClick = { onEditPreferencesClick() }
+                        onClick = { onEditProfileClick() }
                     )
                 }
             }

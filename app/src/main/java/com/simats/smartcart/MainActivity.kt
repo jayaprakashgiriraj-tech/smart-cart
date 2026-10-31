@@ -16,6 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.simats.smartcart.ui.screens.AiReviewAnalyzerScreen
 import com.simats.smartcart.ui.screens.DiscoverScreen
+import com.simats.smartcart.ui.screens.ForgotPasswordScreen
 import com.simats.smartcart.ui.screens.FullProductOverviewScreen
 import com.simats.smartcart.ui.screens.HomeScreen
 import com.simats.smartcart.ui.screens.LoginScreen
@@ -75,6 +76,26 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSignUpClick = {
                                     navController.navigate("signup")
+                                },
+                                onForgotPasswordClick = {
+                                    navController.navigate("forgot_password")
+                                }
+                            )
+                        }
+                        composable("forgot_password") {
+                            ForgotPasswordScreen(
+                                onBackClick = {
+                                    navController.popBackStack()
+                                },
+                                onResetSuccess = {
+                                    navController.navigate("login") {
+                                        popUpTo("forgot_password") { inclusive = true }
+                                    }
+                                },
+                                onLoginClick = {
+                                    navController.navigate("login") {
+                                        popUpTo("forgot_password") { inclusive = true }
+                                    }
                                 }
                             )
                         }

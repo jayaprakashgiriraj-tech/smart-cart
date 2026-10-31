@@ -14,7 +14,7 @@ object UserAccountRepository {
         UserAccount(11, "Demo User", "you@example.com", null, "password123")
     )
 
-    var currentUser: UserAccount? = null
+    var currentUser: UserAccount? = UserAccount(10, "Aarav Mehta", "aarav.mehta@example.com", null, "password123")
 
     fun isEmailRegistered(email: String): Boolean {
         return registeredUsers.any { it.email.equals(email.trim(), ignoreCase = true) }
@@ -44,5 +44,31 @@ object UserAccountRepository {
             return true
         }
         return false
+    }
+
+    fun resetPassword(email: String, newPassword: String): Boolean {
+        val index = registeredUsers.indexOfFirst { it.email.equals(email.trim(), ignoreCase = true) }
+        if (index >= 0) {
+            val user = registeredUsers[index]
+            registeredUsers[index] = user.copy(passwordHash = newPassword)
+            return true
+        }
+        return false
+    }
+
+    fun updateProfile(name: String, email: String, photo: String? = null) {
+        val current = currentUser
+        if (current != null) {
+            val updated = current.copy(name = name.trim(), email = email.trim(), profilePhoto = photo)
+            currentUser = updated
+            val index = registeredUsers.indexOfFirst { it.id == current.id }
+            if (index >= 0) {
+                registeredUsers[index] = updated
+            }
+        } else {
+            val newAcc = UserAccount(1, name.trim(), email.trim(), photo, "password123")
+            currentUser = newAcc
+            registeredUsers.add(newAcc)
+        }
     }
 }

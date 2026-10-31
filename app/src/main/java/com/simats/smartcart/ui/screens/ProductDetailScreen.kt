@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.ProductCatalog
 
 data class MatchProductDetail(
     val name: String,
@@ -107,13 +108,59 @@ fun ProductDetailScreen(
     onViewDetailsClick: (String) -> Unit = {},
     onCompareClick: () -> Unit = {}
 ) {
-    val initialIndex = remember(productName) {
-        val found = matchProductsList.indexOfFirst { it.name.equals(productName, ignoreCase = true) }
-        if (found >= 0) found else 0
+    val currentProductDetail = remember(productName) {
+        val existing = matchProductsList.find { it.name.equals(productName, ignoreCase = true) }
+        if (existing != null) {
+            existing
+        } else {
+            val cat = ProductCatalog.products.find { it.name.equals(productName, ignoreCase = true) }
+            if (cat != null) {
+                val icon = when (cat.category) {
+                    "Mobiles" -> Icons.Outlined.Smartphone
+                    "Laptops" -> Icons.Outlined.Laptop
+                    "Audio" -> if (cat.subcategory == "Speakers") Icons.Outlined.Speaker else Icons.Outlined.Headphones
+                    "Fashion" -> if (cat.needs.contains("Watches")) Icons.Outlined.Watch else if (cat.needs.contains("Accessories")) Icons.Outlined.ShoppingBag else Icons.Outlined.Checkroom
+                    "Home Appliances" -> Icons.Outlined.Kitchen
+                    else -> Icons.Outlined.AutoAwesome
+                }
+                val specParts = cat.specs.split("·").map { it.trim() }
+                val s1 = specParts.getOrNull(0) ?: cat.category
+                val s2 = specParts.getOrNull(1) ?: cat.subcategory
+                val s3 = specParts.getOrNull(2) ?: cat.brand
+                MatchProductDetail(
+                    name = cat.name,
+                    price = cat.price,
+                    rating = cat.rating,
+                    recIndex = "Top Recommendation",
+                    categoryBadge = cat.bestFor.uppercase(),
+                    categoryIcon = icon,
+                    decisionTag = "BUY",
+                    decisionTagBg = Color(0xFFE6F5F0),
+                    decisionTagText = Color(0xFF1A8068),
+                    spec1 = s1,
+                    spec2 = s2,
+                    spec3 = s3,
+                    matchPercentage = cat.matchScore,
+                    matchProgress = cat.matchPercentage / 100f,
+                    valueScore = "${cat.valueScore} /10",
+                    whyText = cat.recommendationSummary
+                )
+            } else {
+                matchProductsList.first()
+            }
+        }
     }
 
-    var currentIndex by remember { mutableIntStateOf(initialIndex) }
-    val product = matchProductsList[currentIndex]
+    var currentIndex by remember {
+        val initial = matchProductsList.indexOfFirst { it.name.equals(productName, ignoreCase = true) }
+        mutableIntStateOf(if (initial >= 0) initial else 0)
+    }
+
+    val product = if (matchProductsList.any { it.name.equals(productName, ignoreCase = true) }) {
+        matchProductsList[currentIndex]
+    } else {
+        currentProductDetail
+    }
 
     Scaffold(
         containerColor = Color(0xFFFAFBFF)
