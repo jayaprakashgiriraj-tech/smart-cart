@@ -3,6 +3,7 @@ package com.simats.smartcart.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -19,67 +20,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-private data class DiscoverProductItem(
-    val name: String,
-    val brand: String,
-    val price: String,
-    val matchScore: String,
-    val rating: String,
-    val specs: String,
-    val needs: List<String>
-)
-
-private val discoverProducts = listOf(
-    DiscoverProductItem(
-        name = "JBL Tune 510BT",
-        brand = "JBL",
-        price = "₹2,799",
-        matchScore = "92% match",
-        rating = "4.3",
-        specs = "40 hours battery",
-        needs = listOf("Clear calls", "Under ₹3,000", "Work-from-home")
-    ),
-    DiscoverProductItem(
-        name = "Soundcore H30i",
-        brand = "Soundcore",
-        price = "₹2,499",
-        matchScore = "88% match",
-        rating = "4.2",
-        specs = "70 hours battery",
-        needs = listOf("Long battery", "Under ₹3,000", "Work-from-home")
-    ),
-    DiscoverProductItem(
-        name = "boAt Rockerz 450",
-        brand = "boAt",
-        price = "₹1,499",
-        matchScore = "84% match",
-        rating = "4.1",
-        specs = "15 hours battery",
-        needs = listOf("Under ₹3,000", "Travel audio")
-    ),
-    DiscoverProductItem(
-        name = "Sony WH-CH520",
-        brand = "Sony",
-        price = "₹4,490",
-        matchScore = "90% match",
-        rating = "4.4",
-        specs = "50 hours battery",
-        needs = listOf("Clear calls", "Long battery", "Work-from-home")
-    ),
-    DiscoverProductItem(
-        name = "Realme Buds Wireless 3",
-        brand = "Realme",
-        price = "₹1,699",
-        matchScore = "82% match",
-        rating = "4.0",
-        specs = "40 hours battery",
-        needs = listOf("Travel audio", "Under ₹3,000")
-    )
-)
+import com.simats.smartcart.data.Product
+import com.simats.smartcart.data.ProductCatalog
 
 @Composable
 fun DiscoverScreen(
@@ -88,28 +34,46 @@ fun DiscoverScreen(
     onCompareSelectedClick: (String, String) -> Unit = { _, _ -> }
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var selectedNeedChip by remember { mutableStateOf("Clear calls") }
+    var selectedCategory by remember { mutableStateOf("All") }
+    var selectedNeedChip by remember { mutableStateOf<String?>(null) }
     var selectedBottomTab by remember { mutableIntStateOf(1) } // 1 is Discover tab
 
-    val filteredProducts = remember(searchQuery, selectedNeedChip) {
-        discoverProducts.filter { product ->
-            val query = searchQuery.trim().lowercase()
-            val matchesSearch = if (query.isEmpty()) {
-                true
-            } else {
-                product.name.lowercase().contains(query) ||
-                product.brand.lowercase().contains(query) ||
-                product.specs.lowercase().contains(query) ||
-                product.needs.any { it.lowercase().contains(query) }
-            }
+    val categories = listOf("All", "Mobiles", "Laptops", "Audio", "Fashion", "Home Appliances")
 
-            val matchesNeed = if (searchQuery.isNotEmpty()) {
-                true
-            } else {
-                product.needs.contains(selectedNeedChip)
-            }
+    val needChips = remember(selectedCategory) {
+        when (selectedCategory) {
+            "Mobiles" -> listOf("Pro Camera", "Under ₹25,000", "Flagship 5G", "Long battery", "Gaming")
+            "Laptops" -> listOf("Online classes", "Student & Study", "Thin & Light", "High FPS Gaming", "Long battery")
+            "Audio" -> listOf("Clear calls", "Long battery", "Under ₹3,000", "Travel audio", "Work-from-home")
+            "Fashion" -> listOf("Dresses for Women", "Dresses for Girls", "Watches for Men", "Watches & Accessories", "Ethnic Wear")
+            "Home Appliances" -> listOf("Home & Kitchen", "Smart TV", "Air Fryer", "Double Door Fridge", "Washing Machine")
+            else -> listOf("Clear calls", "Long battery", "Under ₹3,000", "Online classes", "Pro Camera", "Gaming", "Dresses", "Watches & Accessories", "Home & Kitchen")
+        }
+    }
 
-            matchesSearch && matchesNeed
+    val onChipClicked: (String) -> Unit = { chip ->
+        if (selectedNeedChip == chip) {
+            selectedNeedChip = null
+            searchQuery = ""
+        } else {
+            selectedNeedChip = chip
+            searchQuery = chip
+        }
+    }
+
+    val filteredProducts: List<Product> = remember(searchQuery, selectedCategory) {
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            if (selectedCategory == "All") {
+                ProductCatalog.products
+            } else {
+                ProductCatalog.getProductsByCategory(selectedCategory)
+            }
+        } else {
+            ProductCatalog.searchProducts(
+                query = query,
+                categoryFilter = if (selectedCategory == "All") null else selectedCategory
+            )
         }
     }
 
@@ -153,7 +117,11 @@ fun DiscoverScreen(
                 }
 
                 IconButton(
-                    onClick = { },
+                    onClick = {
+                        searchQuery = ""
+                        selectedNeedChip = null
+                        selectedCategory = "All"
+                    },
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -199,7 +167,12 @@ fun DiscoverScreen(
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = {
+                    searchQuery = it
+                    if (it != selectedNeedChip) {
+                        selectedNeedChip = null
+                    }
+                },
                 placeholder = {
                     Text("Search a need or a product", color = Color(0xFFA0A7B8), fontSize = 14.sp)
                 },
@@ -213,7 +186,10 @@ fun DiscoverScreen(
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            selectedNeedChip = null
+                        }) {
                             Icon(
                                 imageVector = Icons.Outlined.Close,
                                 contentDescription = "Clear search",
@@ -241,58 +217,151 @@ fun DiscoverScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Featured Box ("YOUR EVERYDAY, UPGRADED")
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F4FF)),
-                border = BorderStroke(1.dp, Color(0xFFE2E6F5))
+            // Category Filter Pills
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.School,
-                            contentDescription = null,
-                            tint = Color(0xFF5050F0),
-                            modifier = Modifier.size(16.dp)
+                categories.forEach { cat ->
+                    val isSelected = selectedCategory == cat
+                    Surface(
+                        onClick = {
+                            selectedCategory = cat
+                            selectedNeedChip = null
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) Color(0xFF5050F0) else Color.White,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) Color(0xFF5050F0) else Color(0xFFECEFF8)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                    ) {
                         Text(
-                            text = "YOUR EVERYDAY, UPGRADED",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF5050F0),
-                            letterSpacing = 0.5.sp
+                            text = when (cat) {
+                                "Mobiles" -> "📱 Mobiles"
+                                "Laptops" -> "💻 Laptops"
+                                "Audio" -> "🎧 Audio"
+                                "Fashion" -> "👗 Fashion"
+                                "Home Appliances" -> "🏠 Appliances"
+                                else -> "✨ All Categories"
+                            },
+                            fontSize = 12.sp,
+                            color = if (isSelected) Color.White else Color(0xFF1E2135),
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Better gear for online classes",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF1E2135)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Clear calls, lasting battery and sensible budgets. Start with what you need.",
-                        fontSize = 12.sp,
-                        color = Color(0xFF7A8398),
-                        lineHeight = 18.sp
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Featured Box or Dynamic AI Insight
+            if (searchQuery.isBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onChipClicked("Online classes") },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F4FF)),
+                    border = BorderStroke(1.dp, Color(0xFFE2E6F5))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.School,
+                                contentDescription = null,
+                                tint = Color(0xFF5050F0),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "YOUR EVERYDAY, UPGRADED",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF5050F0),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Better gear for online classes",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF1E2135)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Clear calls, lasting battery and sensible budgets. Start with what you need.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF7A8398),
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F3FF)),
+                    border = BorderStroke(1.dp, Color(0xFFD8E0FF))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                tint = Color(0xFF5050F0),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "AI SPEC & NEED RECOMMENDATION",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF5050F0),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Recommended for \"$searchQuery\"",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF1E2135)
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "SmartCart AI matched ${filteredProducts.size} products based on specifications, use-case requirements, and price suitability.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF5A6478),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Explore by Need Section
             Text(
@@ -302,51 +371,61 @@ fun DiscoverScreen(
                 color = Color(0xFF1E2135)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Need Chips Layout (Flow / Rows)
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    NeedChip(
-                        title = "Clear calls",
-                        isSelected = selectedNeedChip == "Clear calls",
-                        onClick = { selectedNeedChip = "Clear calls" }
-                    )
-                    NeedChip(
-                        title = "Long battery",
-                        isSelected = selectedNeedChip == "Long battery",
-                        onClick = { selectedNeedChip = "Long battery" }
-                    )
-                    NeedChip(
-                        title = "Under ₹3,000",
-                        isSelected = selectedNeedChip == "Under ₹3,000",
-                        onClick = { selectedNeedChip = "Under ₹3,000" }
-                    )
+            // Need Chips Layout (Two rows scrollable or wrapped)
+            val half = (needChips.size + 1) / 2
+            val row1 = needChips.take(half)
+            val row2 = needChips.drop(half)
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    row1.forEach { chipTitle ->
+                        NeedChip(
+                            title = chipTitle,
+                            isSelected = selectedNeedChip == chipTitle,
+                            onClick = { onChipClicked(chipTitle) }
+                        )
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    NeedChip(
-                        title = "Travel audio",
-                        isSelected = selectedNeedChip == "Travel audio",
-                        onClick = { selectedNeedChip = "Travel audio" }
-                    )
-                    NeedChip(
-                        title = "Work-from-home",
-                        isSelected = selectedNeedChip == "Work-from-home",
-                        onClick = { selectedNeedChip = "Work-from-home" }
-                    )
+
+                if (row2.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        row2.forEach { chipTitle ->
+                            NeedChip(
+                                title = chipTitle,
+                                isSelected = selectedNeedChip == chipTitle,
+                                onClick = { onChipClicked(chipTitle) }
+                            )
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Your Audio Shortlist Section Header
+            // Shortlist Section Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (searchQuery.isNotEmpty()) "Search results" else "Your Audio shortlist",
+                    text = when {
+                        searchQuery.isNotEmpty() -> "Search & AI recommendations"
+                        selectedCategory != "All" -> "Your $selectedCategory shortlist"
+                        else -> "Your Curated shortlist"
+                    },
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E2135)
@@ -391,7 +470,7 @@ fun DiscoverScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "No matches for \"$searchQuery\". Try searching for \"Sony\", \"boAt\", \"JBL\", or \"Soundcore\".",
+                            text = "No matches for \"$searchQuery\". Try searching by product name (e.g. \"Samsung\", \"boAt\", \"Sony\") or describe your need (e.g. \"gaming laptop\", \"dress for women\", \"pro camera under 25k\").",
                             fontSize = 12.sp,
                             color = Color(0xFF7A8398),
                             textAlign = TextAlign.Center,
@@ -399,7 +478,11 @@ fun DiscoverScreen(
                         )
                         Spacer(modifier = Modifier.height(14.dp))
                         OutlinedButton(
-                            onClick = { searchQuery = "" },
+                            onClick = {
+                                searchQuery = ""
+                                selectedNeedChip = null
+                                selectedCategory = "All"
+                            },
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, Color(0xFFD0D7FF)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF5050F0))
@@ -412,11 +495,7 @@ fun DiscoverScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     filteredProducts.forEach { product ->
                         ShortlistProductCard(
-                            name = product.name,
-                            price = product.price,
-                            matchScore = product.matchScore,
-                            rating = product.rating,
-                            specs = product.specs,
+                            product = product,
                             onClick = { onProductClick(product.name) }
                         )
                     }
@@ -440,7 +519,7 @@ private fun NeedChip(
         color = if (isSelected) Color(0xFFEEF0FF) else Color.White,
         border = BorderStroke(
             1.dp,
-            if (isSelected) Color(0xFFC0C8F5) else Color(0xFFECEFF8)
+            if (isSelected) Color(0xFF5050F0) else Color(0xFFECEFF8)
         )
     ) {
         Text(
@@ -455,11 +534,7 @@ private fun NeedChip(
 
 @Composable
 private fun ShortlistProductCard(
-    name: String,
-    price: String,
-    matchScore: String,
-    rating: String,
-    specs: String,
+    product: Product,
     onClick: () -> Unit
 ) {
     Card(
@@ -476,6 +551,15 @@ private fun ShortlistProductCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val icon = when (product.category) {
+                "Mobiles" -> Icons.Outlined.Smartphone
+                "Laptops" -> Icons.Outlined.Laptop
+                "Audio" -> if (product.subcategory == "Speakers") Icons.Outlined.Speaker else Icons.Outlined.Headphones
+                "Fashion" -> if (product.needs.contains("Watches")) Icons.Outlined.Watch else if (product.needs.contains("Accessories")) Icons.Outlined.ShoppingBag else Icons.Outlined.Checkroom
+                "Home Appliances" -> if (product.subcategory == "Televisions") Icons.Outlined.Tv else Icons.Outlined.Kitchen
+                else -> Icons.Outlined.ShoppingBag
+            }
+
             Box(
                 modifier = Modifier
                     .size(76.dp)
@@ -484,10 +568,10 @@ private fun ShortlistProductCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Headphones,
-                    contentDescription = name,
-                    tint = Color(0xFF2A2A2A),
-                    modifier = Modifier.size(48.dp)
+                    imageVector = icon,
+                    contentDescription = product.name,
+                    tint = Color(0xFF5050F0),
+                    modifier = Modifier.size(40.dp)
                 )
             }
 
@@ -500,49 +584,110 @@ private fun ShortlistProductCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = name,
+                        text = product.name,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E2135)
+                        color = Color(0xFF1E2135),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = matchScore,
+                        text = product.matchScore,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF5050F0)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = price,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF1E2135)
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.Star,
-                        contentDescription = "Rating",
-                        tint = Color(0xFFFFB800),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = rating,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = "${product.brand} · ${product.subcategory}",
+                        fontSize = 11.sp,
+                        color = Color(0xFF7A8398),
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (product.needs.contains("Dress")) {
+                        Text(
+                            text = " · 👗 Dress",
+                            fontSize = 11.sp,
+                            color = Color(0xFFE91E63),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    } else if (product.needs.contains("Watches")) {
+                        Text(
+                            text = " · ⌚ Watch",
+                            fontSize = 11.sp,
+                            color = Color(0xFF5050F0),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    } else if (product.needs.contains("Accessories")) {
+                        Text(
+                            text = " · 👜 Accessory",
+                            fontSize = 11.sp,
+                            color = Color(0xFF00897B),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = product.price,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF1E2135)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.Star,
+                            contentDescription = "Rating",
+                            tint = Color(0xFFFFB800),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = product.rating,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E2135)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val specText = when {
+                    product.specs.isNotBlank() -> product.specs
+                    product.battery != "N/A" -> "${product.battery} battery"
+                    else -> product.bestFor
+                }
+                Text(
+                    text = specText,
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A8398),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (product.bestFor.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = specs,
-                        fontSize = 11.sp,
-                        color = Color(0xFF7A8398)
+                        text = "💡 ${product.bestFor}",
+                        fontSize = 10.sp,
+                        color = Color(0xFF5A6478),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

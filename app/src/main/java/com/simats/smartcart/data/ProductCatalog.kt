@@ -1004,43 +1004,167 @@ object ProductCatalog {
         maxPriceFilter: Int? = null,
         sortBy: String = "Popularity"
     ): List<Product> {
-        val q = query.trim().lowercase()
-
-        val filtered = products.filter { product ->
-            val matchesCategory = if (categoryFilter.isNullOrBlank() || categoryFilter == "All") {
-                true
+        val rawQ = query.trim().lowercase()
+        if (rawQ.isEmpty()) {
+            val list = if (categoryFilter.isNullOrBlank() || categoryFilter == "All") {
+                products
             } else {
-                product.category.equals(categoryFilter, ignoreCase = true) ||
+                products.filter {
+                    it.category.equals(categoryFilter, ignoreCase = true) ||
+                            it.subcategory.equals(categoryFilter, ignoreCase = true) ||
+                            it.needs.any { n -> n.equals(categoryFilter, ignoreCase = true) }
+                }
+            }
+            return if (maxPriceFilter != null) list.filter { it.numericPrice <= maxPriceFilter } else list
+        }
+
+        // Detect budget hints in the query, e.g. "under 25000", "under 3000", "under 25k", "under 3k", "under 50k"
+        var budgetInQuery: Int? = null
+        val underRegex = Regex("(?:under|below|<|less than)\\s*(?:₹|rs\\.?)?\\s*(\\d+)(k)?")
+        val match = underRegex.find(rawQ)
+        if (match != null) {
+            val num = match.groupValues[1].toIntOrNull() ?: 0
+            val isK = match.groupValues.getOrNull(2) == "k"
+            budgetInQuery = if (isK) num * 1000 else num
+        }
+        val effectiveMaxPrice = maxPriceFilter ?: budgetInQuery
+
+        // Common stopwords to exclude from term matching
+        val stopWords = setOf("a", "an", "the", "and", "or", "in", "on", "at", "to", "for", "with", "by", "of", "from", "show", "give", "find", "recommend", "best", "good", "great", "nice", "top", "under", "below", "need", "i", "want", "please", "me", "products", "product", "item", "items")
+        val cleanTerms = rawQ
+            .replace(Regex("[^a-zA-Z0-9₹ ]"), " ")
+            .split(" ")
+            .map { it.trim() }
+            .filter { it.length >= 2 && !stopWords.contains(it) }
+
+        data class ScoredProduct(val product: Product, val score: Int)
+
+        val scored = products.mapNotNull { product ->
+            val pName = product.name.lowercase()
+            val pBrand = product.brand.lowercase()
+            val isDirectNameOrBrandMatch = pName.contains(rawQ) || pBrand.contains(rawQ) ||
+                    cleanTerms.any { term -> pName.contains(term) || pBrand.contains(term) }
+
+            // Category check: filter by category unless query specifically searched for this product/brand name
+            if (!categoryFilter.isNullOrBlank() && categoryFilter != "All") {
+                val inCat = product.category.equals(categoryFilter, ignoreCase = true) ||
                         product.subcategory.equals(categoryFilter, ignoreCase = true) ||
                         product.needs.any { it.equals(categoryFilter, ignoreCase = true) }
+                if (!inCat && !isDirectNameOrBrandMatch) return@mapNotNull null
             }
 
-            val matchesPrice = if (maxPriceFilter != null) {
-                product.numericPrice <= maxPriceFilter
+            // Price filter check: don't exclude direct name/brand matches (e.g. "iphone") by leftover slider unless query explicitly had a budget (e.g. "under 25k")
+            if (effectiveMaxPrice != null && effectiveMaxPrice > 0 && product.numericPrice > effectiveMaxPrice) {
+                if (budgetInQuery != null || !isDirectNameOrBrandMatch) {
+                    return@mapNotNull null
+                }
+            }
+
+            val pCat = product.category.lowercase()
+            val pSubcat = product.subcategory.lowercase()
+            val pSpecs = product.specs.lowercase()
+            val pBestFor = product.bestFor.lowercase()
+            val pDesc = product.description.lowercase()
+            val pSummary = product.recommendationSummary.lowercase()
+            val pNeeds = product.needs.map { it.lowercase() }
+
+            var score = 0
+
+            // 1. Exact phrase matches in Name, Brand, Category, Needs
+            if (pName.contains(rawQ)) score += 120
+            if (pBrand.contains(rawQ)) score += 100
+            if (pCat.contains(rawQ)) score += 90
+            if (pSubcat.contains(rawQ)) score += 80
+            if (pBestFor.contains(rawQ)) score += 60
+            if (pSpecs.contains(rawQ)) score += 50
+            if (pNeeds.any { it.contains(rawQ) || rawQ.contains(it) }) score += 70
+
+            // Budget match
+            if (budgetInQuery != null && product.numericPrice <= budgetInQuery) {
+                score += 50
+            }
+
+            // 2. Keyword/Term matches (usage, specifications, needs)
+            for (term in cleanTerms) {
+                if (pName.contains(term)) score += 40
+                if (pBrand.contains(term)) score += 35
+                if (pCat.contains(term)) score += 30
+                if (pSubcat.contains(term)) score += 25
+                if (pNeeds.any { it.contains(term) }) score += 30
+                if (pBestFor.contains(term)) score += 25
+                if (pSpecs.contains(term)) score += 20
+                if (pDesc.contains(term)) score += 10
+                if (pSummary.contains(term)) score += 10
+            }
+
+            // 3. Domain usage & intent synonyms:
+            // "online classes" / "study" / "college" -> clear calls, headphones, laptops
+            if ((rawQ.contains("online class") || rawQ.contains("study") || rawQ.contains("college") || rawQ.contains("classes")) &&
+                (pNeeds.any { it.contains("study") || it.contains("class") || it.contains("call") || it.contains("student") } || pBestFor.contains("class") || pBestFor.contains("study"))) {
+                score += 50
+            }
+            // "gaming" -> high performance, RTX, fast charge, Snapdragon
+            if (rawQ.contains("gaming") && (pNeeds.contains("gaming") || pSpecs.contains("rtx") || pSpecs.contains("120hz") || pBestFor.contains("gaming"))) {
+                score += 50
+            }
+            // "camera" / "photos" / "video" -> cameras, MP, lenses
+            if ((rawQ.contains("camera") || rawQ.contains("photo") || rawQ.contains("video")) &&
+                (pSpecs.contains("camera") || pSpecs.contains("mp") || pNeeds.contains("camera") || pBestFor.contains("camera"))) {
+                score += 50
+            }
+            // "battery" / "long battery"
+            if (rawQ.contains("battery") && (product.battery != "N/A" || pSpecs.contains("battery") || pNeeds.contains("battery") || pNeeds.contains("long battery"))) {
+                score += 50
+            }
+            // "calls" / "clear calls" / "mic"
+            if ((rawQ.contains("call") || rawQ.contains("mic")) && (pNeeds.contains("clear calls") || pSpecs.contains("mic") || pBestFor.contains("call"))) {
+                score += 50
+            }
+            // "dress" / "clothing" / "wear" -> clothing items
+            if ((rawQ.contains("dress") || rawQ.contains("cloth") || rawQ.contains("wear") || rawQ.contains("frock") || rawQ.contains("kurta") || rawQ.contains("shirt") || rawQ.contains("jeans") || rawQ.contains("hoodie")) &&
+                pNeeds.contains("dress")) {
+                score += 50
+            }
+            // "watch" / "watches" -> watches
+            if (rawQ.contains("watch") && (pNeeds.contains("watches") || pSubcat.contains("watch") || pSpecs.contains("watch") || pSpecs.contains("chronograph"))) {
+                score += 60
+            }
+            // "accessories" / "bag" / "sunglasses" / "belt" / "wallet"
+            if ((rawQ.contains("accessor") || rawQ.contains("bag") || rawQ.contains("sunglass") || rawQ.contains("belt") || rawQ.contains("wallet")) &&
+                (pNeeds.contains("accessories") || pNeeds.contains("watches & accessories") || pSubcat.contains("accessories"))) {
+                score += 50
+            }
+            // "speaker" / "speakers" / "sound"
+            if ((rawQ.contains("speaker") || rawQ.contains("audio") || rawQ.contains("sound")) &&
+                (pSubcat.contains("speaker") || pNeeds.contains("speakers") || pCat == "audio")) {
+                score += 40
+            }
+            // "men" / "mens" / "boys" / "women" / "womens" / "girls"
+            if ((rawQ.contains("men") || rawQ.contains("man")) && (pSubcat == "men" || pNeeds.contains("men"))) score += 40
+            if (rawQ.contains("women") && (pSubcat == "women" || pNeeds.contains("women"))) score += 40
+            if ((rawQ.contains("boy") || rawQ.contains("boys")) && (pSubcat == "boys" || pNeeds.contains("boys"))) score += 40
+            if ((rawQ.contains("girl") || rawQ.contains("girls")) && (pSubcat == "girls" || pNeeds.contains("girls"))) score += 40
+            // "kitchen" / "cooking" / "appliance" / "fridge" / "washing machine" / "tv"
+            if ((rawQ.contains("kitchen") || rawQ.contains("cook") || rawQ.contains("fry") || rawQ.contains("fridge") || rawQ.contains("wash") || rawQ.contains("clean") || rawQ.contains("appliance") || rawQ.contains("tv")) &&
+                pCat == "home appliances") {
+                score += 45
+            }
+
+            if (score > 0) {
+                ScoredProduct(product, score + product.matchPercentage)
             } else {
-                true
+                null
             }
-
-            val matchesQuery = if (q.isEmpty()) {
-                true
-            } else {
-                product.name.lowercase().contains(q) ||
-                        product.brand.lowercase().contains(q) ||
-                        product.category.lowercase().contains(q) ||
-                        product.subcategory.lowercase().contains(q) ||
-                        product.specs.lowercase().contains(q) ||
-                        product.needs.any { it.lowercase().contains(q) }
-            }
-
-            matchesCategory && matchesPrice && matchesQuery
         }
 
-        return when (sortBy) {
-            "Price: Low to High" -> filtered.sortedBy { it.numericPrice }
-            "Price: High to Low" -> filtered.sortedByDescending { it.numericPrice }
-            "Rating" -> filtered.sortedByDescending { it.rating.toFloatOrNull() ?: 0f }
-            else -> filtered.sortedByDescending { it.matchPercentage }
+        val sorted = when (sortBy) {
+            "Price: Low to High" -> scored.sortedBy { it.product.numericPrice }.map { it.product }
+            "Price: High to Low" -> scored.sortedByDescending { it.product.numericPrice }.map { it.product }
+            "Rating" -> scored.sortedByDescending { it.product.rating.toFloatOrNull() ?: 0f }.map { it.product }
+            else -> scored.sortedByDescending { it.score }.map { it.product }
         }
+
+        return sorted
     }
 
     fun getSimilarProducts(product: Product): List<Product> {

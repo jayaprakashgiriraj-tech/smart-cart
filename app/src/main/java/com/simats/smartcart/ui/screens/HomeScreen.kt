@@ -38,7 +38,8 @@ fun HomeScreen(
     onProductClick: (String) -> Unit = {},
     onCompareClick: () -> Unit = {},
     onSearchClick: (String) -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: () -> Unit = {},
+    onSeeAllClick: (String, String, Int) -> Unit = { _, _, _ -> }
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedBottomTab by remember { mutableIntStateOf(0) }
@@ -554,7 +555,39 @@ fun HomeScreen(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF5050F0),
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable {
+                        val (seeAllQuery, maxBudget) = when (selectedCategory) {
+                            "Mobiles" -> when (selectedMobileFilter) {
+                                "Flagship" -> "Flagship mobiles" to 0
+                                "Under ₹25,000" -> "Mobiles under ₹25,000" to 25000
+                                "Camera" -> "Camera mobiles" to 0
+                                else -> "Mobiles" to 0
+                            }
+                            "Laptops" -> when (selectedLaptopFilter) {
+                                "Student" -> "Student study laptops" to 0
+                                "Thin & Light" -> "Thin and light laptops" to 0
+                                "Gaming" -> "Gaming laptops" to 0
+                                else -> "Laptops" to 0
+                            }
+                            "Audio" -> when (selectedAudioSubcategory) {
+                                "Headsets" -> "Headsets" to 0
+                                "Speakers" -> "Speakers" to 0
+                                else -> "Audio" to 0
+                            }
+                            "Fashion" -> when {
+                                selectedFashionType == "Dress" -> "${if (selectedFashionGroup != "All") selectedFashionGroup else ""} Dresses".trim() to 0
+                                selectedFashionType.contains("Watch") -> "${if (selectedFashionGroup != "All") selectedFashionGroup else ""} Watches".trim() to 0
+                                selectedFashionGroup != "All" -> "Fashion for $selectedFashionGroup" to 0
+                                else -> "Fashion" to 0
+                            }
+                            "Home Appliances" -> when {
+                                selectedApplianceSubcategory != "All" -> selectedApplianceSubcategory to 0
+                                else -> "Home Appliances" to 0
+                            }
+                            else -> "Recommended products" to 0
+                        }
+                        onSeeAllClick(seeAllQuery, selectedCategory, maxBudget)
+                    }
                 )
             }
 

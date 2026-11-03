@@ -135,8 +135,12 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 },
-                                onSearchClick = {
-                                    navController.navigate("search")
+                                onSearchClick = { query ->
+                                    if (query.isNotBlank() && query != "All") {
+                                        navController.navigate("search_results?query=${Uri.encode(query)}&category=All&maxBudget=0")
+                                    } else {
+                                        navController.navigate("search")
+                                    }
                                 },
                                 onProductClick = { name ->
                                     navController.navigate("product_detail/${Uri.encode(name)}")
@@ -146,6 +150,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onProfileClick = {
                                     navController.navigate("profile")
+                                },
+                                onSeeAllClick = { query, category, maxBudget ->
+                                    navController.navigate("search_results?query=${Uri.encode(query)}&category=${Uri.encode(category)}&maxBudget=$maxBudget")
                                 }
                             )
                         }
@@ -182,13 +189,35 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
-                                onFindMatchesClick = {
-                                    navController.navigate("search_results")
+                                onFindMatchesClick = { query, category, maxBudget ->
+                                    navController.navigate("search_results?query=${Uri.encode(query)}&category=${Uri.encode(category)}&maxBudget=$maxBudget")
                                 }
                             )
                         }
-                        composable("search_results") {
+                        composable(
+                            route = "search_results?query={query}&category={category}&maxBudget={maxBudget}",
+                            arguments = listOf(
+                                navArgument("query") {
+                                    type = NavType.StringType
+                                    defaultValue = ""
+                                },
+                                navArgument("category") {
+                                    type = NavType.StringType
+                                    defaultValue = "All"
+                                },
+                                navArgument("maxBudget") {
+                                    type = NavType.IntType
+                                    defaultValue = 0
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val query = backStackEntry.arguments?.getString("query") ?: ""
+                            val category = backStackEntry.arguments?.getString("category") ?: "All"
+                            val maxBudget = backStackEntry.arguments?.getInt("maxBudget") ?: 0
                             SearchResultsScreen(
+                                initialQuery = query,
+                                initialCategory = category,
+                                initialMaxBudget = maxBudget,
                                 onBackClick = {
                                     navController.popBackStack()
                                 },

@@ -2,13 +2,17 @@ package com.simats.smartcart.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,12 +30,28 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun SearchScreen(
     onBackClick: () -> Unit = {},
-    onFindMatchesClick: () -> Unit = {}
+    onFindMatchesClick: (query: String, category: String, maxBudget: Int) -> Unit = { _, _, _ -> }
 ) {
-    var maxBudget by remember { mutableFloatStateOf(3000f) }
     var selectedCategory by remember { mutableStateOf("Audio") }
+    var maxBudget by remember { mutableFloatStateOf(3000f) }
     val selectedPreferences = remember { mutableStateListOf("Clear mic", "Comfort", "Battery life") }
     var followUpQuery by remember { mutableStateOf("") }
+
+    val (budgetMin, budgetMax) = when (selectedCategory) {
+        "Mobiles" -> 5000f to 100000f
+        "Laptops" -> 20000f to 150000f
+        "Fashion" -> 500f to 15000f
+        "Home Appliances" -> 2000f to 60000f
+        else -> 500f to 10000f
+    }
+
+    val options = when (selectedCategory) {
+        "Mobiles" -> listOf("Pro camera", "Fast 5G", "Battery life", "Gaming speed", "AMOLED display")
+        "Laptops" -> listOf("Fast processor", "Lightweight", "Long battery", "Gaming GPU", "Large SSD")
+        "Fashion" -> listOf("Comfort fit", "Premium fabric", "Everyday wear", "Trendy design", "Ethnic wear")
+        "Home Appliances" -> listOf("Energy saving", "Smart features", "Compact design", "Durability", "Fast cooling")
+        else -> listOf("Clear mic", "Comfort", "Battery life", "Noise cancellation", "Deep bass")
+    }
 
     Scaffold(
         bottomBar = {
@@ -45,7 +66,7 @@ fun SearchScreen(
                     value = followUpQuery,
                     onValueChange = { followUpQuery = it },
                     placeholder = {
-                        Text("Ask more or use your voice...", color = Color(0xFFA0A7B8), fontSize = 14.sp)
+                        Text("Search a product (e.g. iPhone, Samsung)...", color = Color(0xFFA0A7B8), fontSize = 14.sp)
                     },
                     leadingIcon = {
                         Icon(
@@ -56,13 +77,30 @@ fun SearchScreen(
                         )
                     },
                     trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Mic,
-                            contentDescription = "Voice Input",
-                            tint = Color(0xFF5050F0),
-                            modifier = Modifier.size(20.dp)
-                        )
+                        if (followUpQuery.isNotBlank()) {
+                            IconButton(onClick = {
+                                onFindMatchesClick(followUpQuery.trim(), selectedCategory, maxBudget.toInt())
+                            }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                                    contentDescription = "Find matches",
+                                    tint = Color(0xFF5050F0),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Mic,
+                                contentDescription = "Voice Input",
+                                tint = Color(0xFF5050F0),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        onFindMatchesClick(followUpQuery.trim(), selectedCategory, maxBudget.toInt())
+                    }),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
                     singleLine = true,
@@ -163,7 +201,11 @@ fun SearchScreen(
             ) {
                 Column {
                     Text(
-                        text = "I need wireless headphones under ₹3,000 for online classes.",
+                        text = if (followUpQuery.isNotBlank()) {
+                            "I'm searching for \"${followUpQuery.trim()}\"."
+                        } else {
+                            "I need $selectedCategory recommendations under ₹${maxBudget.toInt()}."
+                        },
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
@@ -171,7 +213,7 @@ fun SearchScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "You · 9:41",
+                        text = "You · Just now",
                         color = Color(0xFFD6D3FF),
                         fontSize = 10.sp
                     )
@@ -198,7 +240,11 @@ fun SearchScreen(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Got it, Aarav. I'll prioritize clear calls and comfort. Let's fine-tune your shortlist.",
+                    text = if (followUpQuery.isNotBlank()) {
+                        "Got it. I'll search for \"${followUpQuery.trim()}\" and recommend best-matching products based on specs and value."
+                    } else {
+                        "Got it. I'll prioritize ${if (selectedPreferences.isNotEmpty()) selectedPreferences.joinToString(", ") else "top features"}. Let's fine-tune your shortlist."
+                    },
                     fontSize = 13.sp,
                     color = Color(0xFF1E2135),
                     lineHeight = 18.sp,
@@ -242,9 +288,9 @@ fun SearchScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Slider(
-                        value = maxBudget,
+                        value = maxBudget.coerceIn(budgetMin, budgetMax),
                         onValueChange = { maxBudget = it },
-                        valueRange = 500f..5000f,
+                        valueRange = budgetMin..budgetMax,
                         colors = SliderDefaults.colors(
                             thumbColor = Color(0xFF5050F0),
                             activeTrackColor = Color(0xFF5050F0),
@@ -256,8 +302,8 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("₹500", fontSize = 11.sp, color = Color(0xFF7A8398))
-                        Text("₹5,000", fontSize = 11.sp, color = Color(0xFF7A8398))
+                        Text("₹${budgetMin.toInt()}", fontSize = 11.sp, color = Color(0xFF7A8398))
+                        Text("₹${budgetMax.toInt()}", fontSize = 11.sp, color = Color(0xFF7A8398))
                     }
                 }
             }
@@ -274,22 +320,56 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 CategoryChip(
                     title = "Audio",
                     icon = Icons.Outlined.Headphones,
                     isSelected = selectedCategory == "Audio",
-                    onClick = { selectedCategory = "Audio" }
+                    onClick = {
+                        selectedCategory = "Audio"
+                        maxBudget = 3000f
+                    }
                 )
                 CategoryChip(
                     title = "Mobiles",
+                    icon = Icons.Outlined.Smartphone,
                     isSelected = selectedCategory == "Mobiles",
-                    onClick = { selectedCategory = "Mobiles" }
+                    onClick = {
+                        selectedCategory = "Mobiles"
+                        maxBudget = 50000f
+                    }
                 )
                 CategoryChip(
                     title = "Laptops",
+                    icon = Icons.Outlined.Laptop,
                     isSelected = selectedCategory == "Laptops",
-                    onClick = { selectedCategory = "Laptops" }
+                    onClick = {
+                        selectedCategory = "Laptops"
+                        maxBudget = 70000f
+                    }
+                )
+                CategoryChip(
+                    title = "Fashion",
+                    icon = Icons.Outlined.Checkroom,
+                    isSelected = selectedCategory == "Fashion",
+                    onClick = {
+                        selectedCategory = "Fashion"
+                        maxBudget = 3000f
+                    }
+                )
+                CategoryChip(
+                    title = "Home Appliances",
+                    icon = Icons.Outlined.Kitchen,
+                    isSelected = selectedCategory == "Home Appliances",
+                    onClick = {
+                        selectedCategory = "Home Appliances"
+                        maxBudget = 25000f
+                    }
                 )
             }
 
@@ -317,7 +397,6 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            val options = listOf("Clear mic", "Comfort", "Battery life", "Noise cancellation", "Deep bass")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     options.take(3).forEach { option ->
@@ -334,19 +413,21 @@ fun SearchScreen(
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    options.drop(3).forEach { option ->
-                        PreferenceChip(
-                            title = option,
-                            isSelected = selectedPreferences.contains(option),
-                            onClick = {
-                                if (selectedPreferences.contains(option)) {
-                                    selectedPreferences.remove(option)
-                                } else if (selectedPreferences.size < 3) {
-                                    selectedPreferences.add(option)
+                if (options.size > 3) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        options.drop(3).forEach { option ->
+                            PreferenceChip(
+                                title = option,
+                                isSelected = selectedPreferences.contains(option),
+                                onClick = {
+                                    if (selectedPreferences.contains(option)) {
+                                        selectedPreferences.remove(option)
+                                    } else if (selectedPreferences.size < 3) {
+                                        selectedPreferences.add(option)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -355,7 +436,9 @@ fun SearchScreen(
 
             // Find my matches Button
             Button(
-                onClick = onFindMatchesClick,
+                onClick = {
+                    onFindMatchesClick(followUpQuery.trim(), selectedCategory, maxBudget.toInt())
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -370,7 +453,7 @@ fun SearchScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Find my matches",
+                    text = if (followUpQuery.isNotBlank()) "Find matches for \"${followUpQuery.trim()}\"" else "Find my matches",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
@@ -447,7 +530,7 @@ private fun PreferenceChip(
                     tint = Color(0xFF5050F0),
                     modifier = Modifier.size(14.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
             }
             Text(
                 text = title,
