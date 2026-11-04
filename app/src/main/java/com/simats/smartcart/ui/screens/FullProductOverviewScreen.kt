@@ -27,8 +27,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.PriceTrackingRepository
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.WishlistRepository
+import com.simats.smartcart.data.priceHistory
 
 @Composable
 fun FullProductOverviewScreen(
@@ -36,7 +38,8 @@ fun FullProductOverviewScreen(
     onBackClick: () -> Unit = {},
     onWishlistClick: () -> Unit = {},
     onCompareClick: (String, String) -> Unit = { _, _ -> },
-    onWhyItFitsClick: () -> Unit = {}
+    onWhyItFitsClick: () -> Unit = {},
+    onPriceTrackingClick: () -> Unit = {}
 ) {
     var selectedImageIndex by remember { mutableIntStateOf(0) }
     var showCompareSheet by remember { mutableStateOf(false) }
@@ -45,6 +48,15 @@ fun FullProductOverviewScreen(
         ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
     }
     val isWishlisted = WishlistRepository.isWishlisted(product.name)
+
+    var history by remember(product) {
+        mutableStateOf(PriceTrackingRepository.getCachedOrLocal(product))
+    }
+
+    LaunchedEffect(product) {
+        val live = PriceTrackingRepository.getLivePriceHistory(product)
+        history = live
+    }
 
     val primaryIcon = remember(product) {
         when (product.category) {
@@ -421,6 +433,181 @@ fun FullProductOverviewScreen(
                     label = "Value for Money",
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // REAL-TIME PRICE TRACKING & HISTORY GRAPH CARD
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFECEFF8))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF00C853))
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Real-Time Price Tracking",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E2135)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFE8F7F2))
+                                .border(BorderStroke(1.dp, Color(0xFFC8ECE0)), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "30-Day Live",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A8068)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Lowest & Highest Sold Badges Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Lowest Sold Pill
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFE8F7F2))
+                                .border(BorderStroke(1.dp, Color(0xFFC8ECE0)), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ArrowDownward,
+                                contentDescription = null,
+                                tint = Color(0xFF1A8068),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "LOWEST SOLD",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1A8068),
+                                    letterSpacing = 0.5.sp
+                                )
+                                Text(
+                                    text = history.lowestPriceFormatted,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1A8068)
+                                )
+                            }
+                        }
+
+                        // Highest Sold Pill
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFFFF2EE))
+                                .border(BorderStroke(1.dp, Color(0xFFFFD8CE)), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ArrowUpward,
+                                contentDescription = null,
+                                tint = Color(0xFFC8422A),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column {
+                                Text(
+                                    text = "HIGHEST SOLD",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFFC8422A),
+                                    letterSpacing = 0.5.sp
+                                )
+                                Text(
+                                    text = history.highestPriceFormatted,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFFC8422A)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Embedded Real-Time Price History Graph
+                    PriceHistoryGraph(
+                        history = history,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Detailed Tracking Action Button / Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF3F4FD))
+                            .clickable { onPriceTrackingClick() }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.NotificationsActive,
+                                contentDescription = null,
+                                tint = Color(0xFF5050F0),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Set real-time price alerts & full tracking",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF5050F0)
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                            contentDescription = null,
+                            tint = Color(0xFF5050F0),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))

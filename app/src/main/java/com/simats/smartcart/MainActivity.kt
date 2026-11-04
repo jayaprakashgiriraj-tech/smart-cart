@@ -276,6 +276,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onWhyItFitsClick = {
                                     navController.navigate("why_this_fits/${Uri.encode(productName)}")
+                                },
+                                onPriceTrackingClick = {
+                                    navController.navigate("price_tracking/${Uri.encode(productName)}")
                                 }
                             )
                         }
@@ -290,6 +293,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onWhyItFitsClick = {
                                     navController.navigate("why_this_fits")
+                                },
+                                onPriceTrackingClick = {
+                                    navController.navigate("price_tracking/${Uri.encode("Samsung Galaxy S23")}")
                                 }
                             )
                         }

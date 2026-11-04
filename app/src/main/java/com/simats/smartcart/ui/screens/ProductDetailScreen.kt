@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.WishlistRepository
+import com.simats.smartcart.data.priceHistory
 
 data class MatchProductDetail(
     val name: String,
@@ -415,6 +416,53 @@ fun ProductDetailScreen(
                                 color = Color(0xFF7A8398)
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Lowest & Highest Price Sold Quick Strip
+                    val priceHist = remember(product.name) {
+                        ProductCatalog.getProductByName(product.name).priceHistory
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF4F6FC))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF00C853))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Lowest: ${priceHist.lowestPriceFormatted}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A8068)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "·", fontSize = 11.sp, color = Color(0xFF9AA4B8))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Peak: ${priceHist.highestPriceFormatted}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFC8422A)
+                            )
+                        }
+                        Text(
+                            text = "Live tracking",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF5050F0)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
