@@ -432,6 +432,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onPriceDropClick = { name ->
                                     navController.navigate("price_tracking/${Uri.encode(name)}")
+                                },
+                                onProductClick = { name ->
+                                    navController.navigate("product_detail/${Uri.encode(name)}")
+                                },
+                                onCompareProductClick = { name ->
+                                    navController.navigate("compare?prod1=${Uri.encode(name)}")
                                 }
                             )
                         }

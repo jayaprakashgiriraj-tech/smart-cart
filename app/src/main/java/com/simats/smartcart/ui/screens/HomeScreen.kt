@@ -12,7 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.simats.smartcart.data.Product
 import com.simats.smartcart.data.ProductCatalog
+import com.simats.smartcart.data.WishlistRepository
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
@@ -987,6 +989,22 @@ private fun RecommendationProductCard(
                     tint = Color(0xFF5050F0),
                     modifier = Modifier.size(38.dp)
                 )
+
+                val isFav = WishlistRepository.isWishlisted(product.name)
+                IconButton(
+                    onClick = { WishlistRepository.toggleWishlist(product) },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Wishlist",
+                        tint = if (isFav) Color(0xFFE53935) else Color(0xFF5050F0),
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(14.dp))

@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.CompareArrows
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -42,6 +43,8 @@ fun getProductCategoryIcon(product: Product): ImageVector {
 @Composable
 fun CompareProductSheet(
     baseProduct: Product,
+    sheetTitle: String? = null,
+    onSwapPositions: (() -> Unit)? = null,
     onSelectProduct: (Product) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -88,7 +91,7 @@ fun CompareProductSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Compare with ${baseProduct.name}",
+                        text = sheetTitle ?: "Compare with ${baseProduct.name}",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF1E2135),
@@ -113,6 +116,50 @@ fun CompareProductSheet(
                         tint = Color(0xFF7A8398),
                         modifier = Modifier.size(20.dp)
                     )
+                }
+            }
+
+            if (onSwapPositions != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    onClick = {
+                        onSwapPositions()
+                        onDismiss()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF2F4FF),
+                    border = BorderStroke(1.dp, Color(0xFFD8DEF5)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.CompareArrows,
+                                contentDescription = "Swap positions",
+                                tint = Color(0xFF5050F0),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Swap positions of both products",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF5050F0)
+                            )
+                        }
+                        Text(
+                            text = "Swap ⇄",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF5050F0)
+                        )
+                    }
                 }
             }
 

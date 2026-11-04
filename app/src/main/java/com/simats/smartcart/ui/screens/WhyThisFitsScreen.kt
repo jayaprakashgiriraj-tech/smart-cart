@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.ProductCatalog
+import com.simats.smartcart.data.WishlistRepository
 
 @Composable
 fun WhyThisFitsScreen(
@@ -32,12 +34,12 @@ fun WhyThisFitsScreen(
     onCompareClick: (String, String) -> Unit = { _, _ -> },
     onAlternativeClick: (String) -> Unit = {}
 ) {
-    var isWishlisted by remember { mutableStateOf(false) }
     var showCompareSheet by remember { mutableStateOf(false) }
 
     val product = remember(productName) {
         ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
     }
+    val isWishlisted = WishlistRepository.isWishlisted(product.name)
 
     val similarProduct = remember(product) {
         ProductCatalog.getSimilarProducts(product).firstOrNull() ?: ProductCatalog.products.first { it.id != product.id }
@@ -441,7 +443,7 @@ fun WhyThisFitsScreen(
             ) {
                 OutlinedButton(
                     onClick = {
-                        isWishlisted = !isWishlisted
+                        WishlistRepository.toggleWishlist(product)
                         onWishlistClick()
                     },
                     modifier = Modifier
@@ -452,7 +454,7 @@ fun WhyThisFitsScreen(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF5050F0))
                 ) {
                     Icon(
-                        imageVector = if (isWishlisted) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
+                        imageVector = if (isWishlisted) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Wishlist",
                         tint = if (isWishlisted) Color(0xFFE53935) else Color(0xFF5050F0),
                         modifier = Modifier.size(18.dp)

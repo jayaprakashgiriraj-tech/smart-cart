@@ -17,23 +17,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.WishlistRepository
 
 @Composable
 fun SavedDecisionsScreen(
     onTabSelected: (Int) -> Unit = {},
     onCompareClick: () -> Unit = {},
     onOpenComparisonClick: () -> Unit = {},
-    onPriceDropClick: (String) -> Unit = {}
+    onPriceDropClick: (String) -> Unit = {},
+    onProductClick: (String) -> Unit = {},
+    onCompareProductClick: (String) -> Unit = {}
 ) {
     var selectedTopTab by remember { mutableIntStateOf(0) } // 0 is Wishlist, 1 is Comparisons
     var selectedBottomTab by remember { mutableIntStateOf(3) } // 3 is Wishlist tab
-    var priceDropJbl by remember { mutableStateOf(true) }
-    var priceDropSoundcore by remember { mutableStateOf(true) }
+    val wishlistItems = WishlistRepository.items
 
     Scaffold(
         bottomBar = {
@@ -115,7 +119,7 @@ fun SavedDecisionsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Segmented Tab Switcher (Wishlist · 2 vs Comparisons · 1)
+            // Segmented Tab Switcher (Wishlist · N vs Comparisons · 1)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -135,7 +139,7 @@ fun SavedDecisionsScreen(
                     ),
                     elevation = null
                 ) {
-                    Text("Wishlist · 2", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("Wishlist · ${wishlistItems.size}", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
@@ -156,39 +160,78 @@ fun SavedDecisionsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Wishlist Item 1: JBL Tune 510BT
-            WishlistItemCard(
-                name = "JBL Tune 510BT",
-                price = "₹2,799",
-                originalPrice = "₹2,999",
-                decisionTag = "BUY",
-                isBuyTag = true,
-                priceDropChecked = priceDropJbl,
-                onPriceDropChange = {
-                    priceDropJbl = it
-                },
-                onPriceDropClick = { onPriceDropClick("JBL Tune 510BT") },
-                onCompareClick = onCompareClick
-            )
+            // Wishlist Tab Content
+            if (selectedTopTab == 0) {
+                if (wishlistItems.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFECEFF8))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FavoriteBorder,
+                                contentDescription = null,
+                                tint = Color(0xFF9AA4B8),
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Your wishlist is empty",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E2135)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Tap the Wishlist button on any product to save it here.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF7A8398),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    wishlistItems.forEachIndexed { index, item ->
+                        if (index > 0) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                        }
+                        val isBuy = item.product.valueScore >= 9.0
+                        WishlistItemCard(
+                            name = item.product.name,
+                            price = item.product.price,
+                            originalPrice = item.originalPrice.ifBlank {
+                                if (item.product.numericPrice > 0) "₹" + String.format("%,d", (item.product.numericPrice * 1.12).toInt()) else ""
+                            },
+                            decisionTag = if (isBuy) "BUY" else "CONSIDER",
+                            isBuyTag = isBuy,
+                            icon = getProductCategoryIcon(item.product),
+                            priceDropChecked = item.priceDropEnabled,
+                            onPriceDropChange = { enabled ->
+                                WishlistRepository.setPriceDrop(item.product.name, enabled)
+                            },
+                            onPriceDropClick = { onPriceDropClick(item.product.name) },
+                            onCompareClick = {
+                                onCompareProductClick(item.product.name)
+                            },
+                            onRemoveClick = {
+                                WishlistRepository.remove(item.product.name)
+                            },
+                            onProductClick = {
+                                onProductClick(item.product.name)
+                            }
+                        )
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Wishlist Item 2: Soundcore H30i
-            WishlistItemCard(
-                name = "Soundcore H30i",
-                price = "₹2,499",
-                originalPrice = "₹2,699",
-                decisionTag = "CONSIDER",
-                isBuyTag = false,
-                priceDropChecked = priceDropSoundcore,
-                onPriceDropChange = {
-                    priceDropSoundcore = it
-                },
-                onPriceDropClick = { onPriceDropClick("Soundcore H30i") },
-                onCompareClick = onCompareClick
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+            }
 
             // Saved Comparisons Section
             Row(
@@ -301,13 +344,18 @@ private fun WishlistItemCard(
     originalPrice: String,
     decisionTag: String,
     isBuyTag: Boolean,
+    icon: ImageVector = Icons.Outlined.Headphones,
     priceDropChecked: Boolean,
     onPriceDropChange: (Boolean) -> Unit,
     onPriceDropClick: () -> Unit = {},
-    onCompareClick: () -> Unit
+    onCompareClick: () -> Unit = {},
+    onRemoveClick: () -> Unit = {},
+    onProductClick: () -> Unit = {}
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onProductClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFECEFF8))
@@ -329,7 +377,7 @@ private fun WishlistItemCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Headphones,
+                        imageVector = icon,
                         contentDescription = name,
                         tint = Color(0xFF2A2A2A),
                         modifier = Modifier.size(48.dp)
@@ -355,13 +403,15 @@ private fun WishlistItemCard(
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF1E2135)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = originalPrice,
-                            fontSize = 11.sp,
-                            color = Color(0xFF9AA4B8),
-                            textDecoration = TextDecoration.LineThrough
-                        )
+                        if (originalPrice.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = originalPrice,
+                                fontSize = 11.sp,
+                                color = Color(0xFF9AA4B8),
+                                textDecoration = TextDecoration.LineThrough
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(2.dp))
@@ -453,7 +503,7 @@ private fun WishlistItemCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable { onRemoveClick() }
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,

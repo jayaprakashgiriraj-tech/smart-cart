@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.ProductCatalog
+import com.simats.smartcart.data.WishlistRepository
 
 data class MatchProductDetail(
     val name: String,
@@ -211,16 +213,31 @@ fun ProductDetailScreen(
                     }
                 }
 
-                IconButton(
-                    onClick = { },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Tune,
-                        contentDescription = "Filter",
-                        tint = Color(0xFF5050F0),
-                        modifier = Modifier.size(20.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val isFav = WishlistRepository.isWishlisted(product.name)
+                    IconButton(
+                        onClick = { WishlistRepository.toggleWishlist(product.name) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Wishlist",
+                            tint = if (isFav) Color(0xFFE53935) else Color(0xFF5050F0),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Tune,
+                            contentDescription = "Filter",
+                            tint = Color(0xFF5050F0),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 

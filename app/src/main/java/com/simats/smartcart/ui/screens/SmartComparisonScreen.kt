@@ -14,8 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import com.simats.smartcart.data.WishlistRepository
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -132,6 +134,7 @@ fun SmartComparisonScreen(
     val product1 = remember(currentProd1Name) { ProductCatalog.getProductByName(currentProd1Name) }
     val product2 = remember(currentProd2Name) { ProductCatalog.getProductByName(currentProd2Name) }
 
+    var showChangeP1Sheet by remember { mutableStateOf(false) }
     var showChangeP2Sheet by remember { mutableStateOf(false) }
 
     val icon1 = remember(product1) { getProductCategoryIcon(product1) }
@@ -202,14 +205,18 @@ fun SmartComparisonScreen(
                     }
                 }
 
+                val isFav1 = WishlistRepository.isWishlisted(product1.name)
                 IconButton(
-                    onClick = { },
+                    onClick = {
+                        WishlistRepository.toggleWishlist(product1)
+                        WishlistRepository.toggleWishlist(product2)
+                    },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.BookmarkBorder,
+                        imageVector = if (isFav1) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                         contentDescription = "Bookmark",
-                        tint = Color(0xFF5050F0),
+                        tint = if (isFav1) Color(0xFF5050F0) else Color(0xFF7A8398),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -285,150 +292,211 @@ fun SmartComparisonScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Product Cards Header Row
-            Row(
+            // Product Cards Header Row with Swap capability
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                contentAlignment = Alignment.Center
             ) {
-                // Product 1 Header Card
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E6F5))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
+                    // Product 1 Header Card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E6F5))
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(80.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF5F6FA)),
-                            contentAlignment = Alignment.Center
+                                .padding(12.dp)
                         ) {
-                            Icon(
-                                imageVector = icon1,
-                                contentDescription = product1.name,
-                                tint = Color(0xFF2A2A2A),
-                                modifier = Modifier.size(46.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = product1.name,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E2135),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = product1.price,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF1E2135)
-                            )
-                            Text(
-                                text = product1.matchScore,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF5050F0)
-                            )
-                        }
-                    }
-                }
-
-                // Product 2 Header Card
-                Card(
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E6F5))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF5F6FA)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = icon2,
-                                contentDescription = product2.name,
-                                tint = Color(0xFF2A2A2A),
-                                modifier = Modifier.size(46.dp)
-                            )
-
-                            // Change chip inside box
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(4.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color.White.copy(alpha = 0.9f))
-                                    .clickable { showChangeP2Sheet = true }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .fillMaxWidth()
+                                    .height(80.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFF5F6FA)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon1,
+                                    contentDescription = product1.name,
+                                    tint = Color(0xFF2A2A2A),
+                                    modifier = Modifier.size(46.dp)
+                                )
+
+                                // Swap chip inside box for Product 1
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.White.copy(alpha = 0.9f))
+                                        .clickable { showChangeP1Sheet = true }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Swap",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF5050F0)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = product1.name,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E2135),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Swap",
-                                    fontSize = 10.sp,
+                                    text = product1.price,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1E2135)
+                                )
+                                Text(
+                                    text = product1.matchScore,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF5050F0)
                                 )
                             }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = product2.name,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E2135),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    // Product 2 Header Card
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { showChangeP2Sheet = true },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E6F5))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(80.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFF5F6FA)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon2,
+                                    contentDescription = product2.name,
+                                    tint = Color(0xFF2A2A2A),
+                                    modifier = Modifier.size(46.dp)
+                                )
+
+                                // Swap chip inside box for Product 2
+                                Surface(
+                                    onClick = { showChangeP2Sheet = true },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(5.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.White,
+                                    border = BorderStroke(1.dp, Color(0xFFE2E6F5)),
+                                    shadowElevation = 1.dp
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Outlined.CompareArrows,
+                                            contentDescription = "Swap product",
+                                            tint = Color(0xFF5050F0),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = "Swap",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF5050F0)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
                             Text(
-                                text = product2.price,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF1E2135)
-                            )
-                            Text(
-                                text = product2.matchScore,
-                                fontSize = 11.sp,
+                                text = product2.name,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF5050F0)
+                                color = Color(0xFF1E2135),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = product2.price,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1E2135)
+                                )
+                                Text(
+                                    text = product2.matchScore,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF5050F0)
+                                )
+                            }
                         }
+                    }
+                }
+
+                // Interactive Center Swap Button between both products
+                Surface(
+                    onClick = {
+                        val temp = currentProd1Name
+                        currentProd1Name = currentProd2Name
+                        currentProd2Name = temp
+                    },
+                    shape = CircleShape,
+                    color = Color.White,
+                    shadowElevation = 3.dp,
+                    border = BorderStroke(1.dp, Color(0xFFD8DEF5)),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.CompareArrows,
+                            contentDescription = "Swap both products",
+                            tint = Color(0xFF5050F0),
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
@@ -604,10 +672,34 @@ fun SmartComparisonScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Bottom Sheet to choose another product
+        // Bottom Sheet to choose/swap Product 1
+        if (showChangeP1Sheet) {
+            CompareProductSheet(
+                baseProduct = product2,
+                sheetTitle = "Swap ${product1.name}",
+                onSwapPositions = {
+                    val temp = currentProd1Name
+                    currentProd1Name = currentProd2Name
+                    currentProd2Name = temp
+                },
+                onSelectProduct = { chosen ->
+                    currentProd1Name = chosen.name
+                    showChangeP1Sheet = false
+                },
+                onDismiss = { showChangeP1Sheet = false }
+            )
+        }
+
+        // Bottom Sheet to choose/swap Product 2
         if (showChangeP2Sheet) {
             CompareProductSheet(
                 baseProduct = product1,
+                sheetTitle = "Swap ${product2.name}",
+                onSwapPositions = {
+                    val temp = currentProd1Name
+                    currentProd1Name = currentProd2Name
+                    currentProd2Name = temp
+                },
                 onSelectProduct = { chosen ->
                     currentProd2Name = chosen.name
                     showChangeP2Sheet = false
