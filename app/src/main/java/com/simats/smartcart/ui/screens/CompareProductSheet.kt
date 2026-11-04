@@ -47,34 +47,26 @@ fun CompareProductSheet(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    val defaultCandidates = remember(baseProduct) {
-        val similar = ProductCatalog.getSimilarProducts(baseProduct)
-        if (similar.isNotEmpty()) {
-            similar
-        } else {
-            ProductCatalog.products.filter { it.id != baseProduct.id }
-        }
+    val categoryCandidates = remember(baseProduct) {
+        ProductCatalog.getProductsByCategory(baseProduct.category)
+            .filter { it.id != baseProduct.id }
     }
 
-    val displayCandidates = remember(baseProduct, searchQuery, defaultCandidates) {
+    val displayCandidates = remember(baseProduct, searchQuery, categoryCandidates) {
         if (searchQuery.isBlank()) {
-            defaultCandidates
+            categoryCandidates
         } else {
             val q = searchQuery.trim().lowercase()
             val tokens = q.split(" ").filter { it.isNotBlank() }
-            ProductCatalog.products.filter { product ->
-                product.id != baseProduct.id && tokens.all { token ->
+            categoryCandidates.filter { product ->
+                tokens.all { token ->
                     product.name.lowercase().contains(token) ||
                     product.brand.lowercase().contains(token) ||
-                    product.category.lowercase().contains(token) ||
                     product.subcategory.lowercase().contains(token) ||
                     product.specs.lowercase().contains(token) ||
                     product.bestFor.lowercase().contains(token)
                 }
-            }.sortedWith(
-                compareByDescending<Product> { it.category.equals(baseProduct.category, ignoreCase = true) }
-                    .thenByDescending { it.matchPercentage }
-            )
+            }.sortedByDescending { it.matchPercentage }
         }
     }
 
@@ -133,7 +125,7 @@ fun CompareProductSheet(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = {
                     Text(
-                        text = "Search product to compare...",
+                        text = "Search ${baseProduct.subcategory.ifBlank { baseProduct.category }} to compare...",
                         fontSize = 13.sp,
                         color = Color(0xFF9AA2B1)
                     )
@@ -192,7 +184,7 @@ fun CompareProductSheet(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "No matching products found",
+                            text = "No matching ${baseProduct.subcategory.ifBlank { baseProduct.category }.lowercase()} found",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF7A8398)

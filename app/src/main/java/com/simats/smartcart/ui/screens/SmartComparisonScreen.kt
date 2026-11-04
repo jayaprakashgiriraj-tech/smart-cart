@@ -267,7 +267,7 @@ fun SmartComparisonScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Search products to compare...",
+                        text = "Search ${product1.subcategory.ifBlank { product1.category }} to compare...",
                         fontSize = 13.sp,
                         color = Color(0xFF7A8398),
                         maxLines = 1,
