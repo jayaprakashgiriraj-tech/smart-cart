@@ -33,6 +33,27 @@ data class Product(
 
     val stockStatus: String
         get() = if (isAvailable) "In Stock" else "Unavailable"
+
+    val isSpeaker: Boolean
+        get() = subcategory.contains("Speaker", ignoreCase = true) ||
+                name.contains("Speaker", ignoreCase = true) ||
+                needs.any { it.equals("Speakers", ignoreCase = true) }
+
+    val isHeadset: Boolean
+        get() = (category.equals("Audio", ignoreCase = true) && !isSpeaker) ||
+                subcategory.contains("Headset", ignoreCase = true) ||
+                subcategory.contains("Headphone", ignoreCase = true) ||
+                needs.any { it.equals("Headsets", ignoreCase = true) }
+
+    fun getComparisonCategoryLabel(): String {
+        return when {
+            isSpeaker -> "Speakers"
+            isHeadset -> "Headphones & Headsets"
+            category.equals("Home Appliances", ignoreCase = true) -> subcategory.ifBlank { category }
+            category.equals("Fashion", ignoreCase = true) -> subcategory.ifBlank { category }
+            else -> subcategory.ifBlank { category }
+        }
+    }
 }
 
 object ProductCatalog {
@@ -1177,10 +1198,41 @@ object ProductCatalog {
         return findProductByNameOrNull(name) ?: products.first()
     }
 
-    fun getSimilarProducts(product: Product): List<Product> {
-        return products.filter {
-            it.category.equals(product.category, ignoreCase = true) && it.id != product.id
+    fun isSameComparisonScope(p1: Product, p2: Product): Boolean {
+        if (!p1.category.equals(p2.category, ignoreCase = true)) {
+            return false
         }
+        if (p1.category.equals("Audio", ignoreCase = true)) {
+            // Audio products: Headsets and Headphones compare ONLY with other Headsets/Headphones.
+            // Speakers compare ONLY with other Speakers.
+            if (p1.isSpeaker || p2.isSpeaker) {
+                return p1.isSpeaker && p2.isSpeaker
+            }
+            if (p1.isHeadset || p2.isHeadset) {
+                return p1.isHeadset && p2.isHeadset
+            }
+            return p1.subcategory.equals(p2.subcategory, ignoreCase = true)
+        }
+        if (p1.category.equals("Home Appliances", ignoreCase = true)) {
+            return p1.subcategory.equals(p2.subcategory, ignoreCase = true)
+        }
+        if (p1.category.equals("Fashion", ignoreCase = true)) {
+            val p1IsWatch = p1.needs.any { it.contains("Watch", ignoreCase = true) || it.contains("Accessory", ignoreCase = true) }
+            val p2IsWatch = p2.needs.any { it.contains("Watch", ignoreCase = true) || it.contains("Accessory", ignoreCase = true) }
+            if (p1IsWatch || p2IsWatch) return p1IsWatch == p2IsWatch
+            return p1.subcategory.equals(p2.subcategory, ignoreCase = true)
+        }
+        return true
+    }
+
+    fun getComparableProducts(product: Product): List<Product> {
+        return products.filter { candidate ->
+            candidate.id != product.id && isSameComparisonScope(product, candidate)
+        }
+    }
+
+    fun getSimilarProducts(product: Product): List<Product> {
+        return getComparableProducts(product)
     }
 
     fun getFashionProducts(group: String = "All", type: String = "All"): List<Product> {

@@ -51,8 +51,7 @@ fun CompareProductSheet(
     var searchQuery by remember { mutableStateOf("") }
 
     val categoryCandidates = remember(baseProduct) {
-        ProductCatalog.getProductsByCategory(baseProduct.category)
-            .filter { it.id != baseProduct.id }
+        ProductCatalog.getComparableProducts(baseProduct)
     }
 
     val displayCandidates = remember(baseProduct, searchQuery, categoryCandidates) {
@@ -100,7 +99,7 @@ fun CompareProductSheet(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Choose a matching ${baseProduct.subcategory.ifBlank { baseProduct.category }} to compare specs & prices:",
+                        text = "Choose matching ${baseProduct.getComparisonCategoryLabel()} to compare specs & prices:",
                         fontSize = 12.sp,
                         color = Color(0xFF7A8398)
                     )
@@ -172,7 +171,7 @@ fun CompareProductSheet(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = {
                     Text(
-                        text = "Search ${baseProduct.subcategory.ifBlank { baseProduct.category }} to compare...",
+                        text = "Search ${baseProduct.getComparisonCategoryLabel()} to compare...",
                         fontSize = 13.sp,
                         color = Color(0xFF9AA2B1)
                     )
@@ -231,7 +230,7 @@ fun CompareProductSheet(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "No matching ${baseProduct.subcategory.ifBlank { baseProduct.category }.lowercase()} found",
+                            text = "No matching ${baseProduct.getComparisonCategoryLabel().lowercase()} found",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF7A8398)

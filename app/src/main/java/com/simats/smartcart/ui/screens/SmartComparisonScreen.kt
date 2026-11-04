@@ -42,6 +42,21 @@ data class SpecRowData(
 )
 
 private fun getCategorySpecRows(p1: Product, p2: Product): List<SpecRowData> {
+    if (p1.isSpeaker && p2.isSpeaker) {
+        val p1Specs = p1.specs.split("·").map { it.trim() }
+        val p2Specs = p2.specs.split("·").map { it.trim() }
+        return listOf(
+            SpecRowData("Sound Output", p1Specs.getOrNull(0) ?: "Stereo Sound", p2Specs.getOrNull(0) ?: "Stereo Sound"),
+            SpecRowData("Water Resistance", p1Specs.getOrNull(1) ?: "Water Resistant", p2Specs.getOrNull(1) ?: "Waterproof"),
+            SpecRowData("Battery Playtime", p1.battery, p2.battery, isBoldValue1 = p1.battery == p2.battery || p1.battery > p2.battery),
+            SpecRowData("Portability / Weight", p1.weight, p2.weight),
+            SpecRowData("Primary Highlight", p1.bestFor, p2.bestFor),
+            SpecRowData("Customer Rating", "★ ${p1.rating} (${p1.reviewCount})", "★ ${p2.rating} (${p2.reviewCount})", isBoldValue1 = p1.rating >= p2.rating),
+            SpecRowData("Official Warranty", p1.warranty, p2.warranty),
+            SpecRowData("Value (/10)", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
+        )
+    }
+
     return when (p1.category) {
         "Mobiles" -> {
             val p1Specs = p1.specs.split("·").map { it.trim() }
@@ -94,16 +109,16 @@ private fun getCategorySpecRows(p1: Product, p2: Product): List<SpecRowData> {
                 SpecRowData("Value (/10)", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
             )
         }
-        else -> { // Audio and general fallback
+        else -> { // Audio Headsets / Headphones and general fallback
             listOf(
-                SpecRowData("Battery¹", p1.battery, p2.battery, isBoldValue1 = p1.battery != p2.battery),
-                SpecRowData("Call mic²", p1.callMic, p2.callMic, isBoldValue1 = true),
+                SpecRowData("Battery Life", p1.battery, p2.battery, isBoldValue1 = p1.battery != p2.battery),
+                SpecRowData("Call Mic", p1.callMic, p2.callMic, isBoldValue1 = true),
                 SpecRowData("Weight", p1.weight, p2.weight, isBoldValue1 = p1.weight != p2.weight),
                 SpecRowData("Multipoint", p1.multipoint, p2.multipoint),
                 SpecRowData("Active NC", p1.activeNC, p2.activeNC),
                 SpecRowData("App EQ", p1.appEQ, p2.appEQ),
-                SpecRowData("Warranty¹", p1.warranty, p2.warranty),
-                SpecRowData("Value (/10)²", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
+                SpecRowData("Warranty", p1.warranty, p2.warranty),
+                SpecRowData("Value (/10)", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
             )
         }
     }
@@ -123,10 +138,10 @@ fun SmartComparisonScreen(
     var currentProd2Name by remember(product2Name, product1Name) {
         val p1 = ProductCatalog.getProductByName(product1Name)
         val candidate = ProductCatalog.getProductByName(product2Name)
-        val initialP2 = if (candidate.category.equals(p1.category, ignoreCase = true) && candidate.id != p1.id) {
+        val initialP2 = if (ProductCatalog.isSameComparisonScope(p1, candidate) && candidate.id != p1.id) {
             candidate.name
         } else {
-            ProductCatalog.getSimilarProducts(p1).firstOrNull()?.name ?: candidate.name
+            ProductCatalog.getComparableProducts(p1).firstOrNull()?.name ?: candidate.name
         }
         mutableStateOf(initialP2)
     }
@@ -196,7 +211,7 @@ fun SmartComparisonScreen(
                             color = Color(0xFF1E2135)
                         )
                         Text(
-                            text = "${product1.category} · ${product1.brand} vs ${product2.brand}",
+                            text = "${product1.getComparisonCategoryLabel()} · ${product1.brand} vs ${product2.brand}",
                             fontSize = 11.sp,
                             color = Color(0xFF7A8398),
                             maxLines = 1,
@@ -274,7 +289,7 @@ fun SmartComparisonScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Search ${product1.subcategory.ifBlank { product1.category }} to compare...",
+                        text = "Search ${product1.getComparisonCategoryLabel()} to compare...",
                         fontSize = 13.sp,
                         color = Color(0xFF7A8398),
                         maxLines = 1,
@@ -505,7 +520,7 @@ fun SmartComparisonScreen(
             if (otherCompetitors.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Compare ${product1.brand} with another:",
+                    text = "Compare ${product1.brand} with another ${product1.getComparisonCategoryLabel()}:",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E2135)
