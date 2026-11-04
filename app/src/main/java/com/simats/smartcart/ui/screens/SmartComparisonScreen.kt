@@ -43,8 +43,8 @@ fun SmartComparisonScreen(
 ) {
     var selectedBottomTab by remember { mutableIntStateOf(2) } // 2 is Compare tab
 
-    val product1 = remember(product1Name) { ProductCatalog.getProductByName(product1Name) }
-    val product2 = remember(product2Name) { ProductCatalog.getProductByName(product2Name) }
+    val product1 = remember(product1Name) { ProductCatalog.getProductByName(product1Name) ?: ProductCatalog.products.first() }
+    val product2 = remember(product2Name) { ProductCatalog.getProductByName(product2Name) ?: ProductCatalog.products.getOrElse(1) { ProductCatalog.products.first() } }
 
     val winner = if (product1.matchPercentage >= product2.matchPercentage) product1 else product2
 

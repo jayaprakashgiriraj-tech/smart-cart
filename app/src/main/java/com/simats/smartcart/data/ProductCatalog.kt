@@ -984,11 +984,6 @@ object ProductCatalog {
         )
     )
 
-    fun getProductByName(name: String): Product {
-        return products.find { it.name.equals(name, ignoreCase = true) }
-            ?: products.first()
-    }
-
     fun getProductsByCategory(category: String, subcategory: String? = null): List<Product> {
         val catFiltered = products.filter { it.category.equals(category, ignoreCase = true) }
         return if (subcategory != null && subcategory != "All") {
@@ -1165,6 +1160,12 @@ object ProductCatalog {
         }
 
         return sorted
+    }
+
+    fun getProductByName(name: String): Product? {
+        val clean = name.trim()
+        return products.find { it.name.equals(clean, ignoreCase = true) }
+            ?: products.find { it.name.contains(clean, ignoreCase = true) || clean.contains(it.name, ignoreCase = true) }
     }
 
     fun getSimilarProducts(product: Product): List<Product> {

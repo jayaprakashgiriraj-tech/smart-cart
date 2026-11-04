@@ -524,38 +524,42 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(
                         text = when (selectedCategory) {
                             "Mobiles" -> "Recommended Mobiles"
                             "Laptops" -> "Recommended Laptops"
-                            "Audio" -> if (selectedAudioSubcategory == "Headsets") "Recommended Headsets" else if (selectedAudioSubcategory == "Speakers") "Recommended Speakers" else "Recommended Audio · Headsets & Speakers"
+                            "Audio" -> if (selectedAudioSubcategory == "Headsets") "Recommended Headsets" else if (selectedAudioSubcategory == "Speakers") "Recommended Speakers" else "Recommended Audio"
                             "Fashion" -> when (selectedFashionGroup) {
-                                "Men" -> if (selectedFashionType == "Dress") "Men's Dresses & Clothing" else if (selectedFashionType.contains("Watch")) "Men's Watches & Accessories" else "Recommended for Men · Dresses, Watches & Accessories"
-                                "Women" -> if (selectedFashionType == "Dress") "Women's Dresses & Clothing" else if (selectedFashionType.contains("Watch")) "Women's Watches & Accessories" else "Recommended for Women · Dresses, Watches & Accessories"
-                                "Boys" -> if (selectedFashionType == "Dress") "Boys' Dresses & Clothing" else if (selectedFashionType.contains("Watch")) "Boys' Watches & Accessories" else "Recommended for Boys · Dresses & Watches"
-                                "Girls" -> if (selectedFashionType == "Dress") "Girls' Dresses & Clothing" else if (selectedFashionType.contains("Watch")) "Girls' Watches & Accessories" else "Recommended for Girls · Dresses & Accessories"
-                                else -> if (selectedFashionType == "Dress") "Fashion Dresses" else if (selectedFashionType.contains("Watch")) "Watches & Accessories" else "Recommended Fashion · Men, Women, Boys & Girls"
+                                "Men" -> if (selectedFashionType == "Dress") "Men's Clothing" else if (selectedFashionType.contains("Watch")) "Men's Watches" else "Recommended for Men"
+                                "Women" -> if (selectedFashionType == "Dress") "Women's Clothing" else if (selectedFashionType.contains("Watch")) "Women's Watches" else "Recommended for Women"
+                                "Boys" -> if (selectedFashionType == "Dress") "Boys' Clothing" else if (selectedFashionType.contains("Watch")) "Boys' Watches" else "Recommended for Boys"
+                                "Girls" -> if (selectedFashionType == "Dress") "Girls' Clothing" else if (selectedFashionType.contains("Watch")) "Girls' Watches" else "Recommended for Girls"
+                                else -> if (selectedFashionType == "Dress") "Fashion Dresses" else if (selectedFashionType.contains("Watch")) "Watches & Accessories" else "Recommended Fashion"
                             }
                             "Home Appliances" -> if (selectedApplianceSubcategory != "All") "Recommended $selectedApplianceSubcategory" else "Recommended Home Appliances"
                             else -> "Recommended for You"
                         },
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E2135)
+                        color = Color(0xFF1E2135),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "${recommendedProducts.size} recommendations found",
                         fontSize = 11.sp,
                         color = Color(0xFF7A8398)
                     )
                 }
-                Text(
-                    text = "See all",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5050F0),
-                    modifier = Modifier.clickable {
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Surface(
+                    onClick = {
                         val (seeAllQuery, maxBudget) = when (selectedCategory) {
                             "Mobiles" -> when (selectedMobileFilter) {
                                 "Flagship" -> "Flagship mobiles" to 0
@@ -587,8 +591,20 @@ fun HomeScreen(
                             else -> "Recommended products" to 0
                         }
                         onSeeAllClick(seeAllQuery, selectedCategory, maxBudget)
-                    }
-                )
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFEEF0FF)
+                ) {
+                    Text(
+                        text = "See all",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF5050F0),
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -637,15 +653,27 @@ fun HomeScreen(
                     text = "Recently compared",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E2135)
+                    color = Color(0xFF1E2135),
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "View activity",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5050F0),
-                    modifier = Modifier.clickable { onCompareClick() }
-                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Surface(
+                    onClick = { onCompareClick() },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFEEF0FF)
+                ) {
+                    Text(
+                        text = "View activity",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF5050F0),
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

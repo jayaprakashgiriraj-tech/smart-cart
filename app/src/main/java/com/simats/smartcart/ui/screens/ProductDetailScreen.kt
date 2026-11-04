@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +28,9 @@ import com.simats.smartcart.data.ProductCatalog
 
 data class MatchProductDetail(
     val name: String,
+    val brand: String = "",
+    val category: String = "",
+    val subcategory: String = "",
     val price: String,
     val rating: String,
     val recIndex: String,
@@ -41,7 +45,8 @@ data class MatchProductDetail(
     val matchPercentage: String,
     val matchProgress: Float,
     val valueScore: String,
-    val whyText: String
+    val whyText: String,
+    val needs: List<String> = emptyList()
 )
 
 val matchProductsList = listOf(
@@ -113,7 +118,7 @@ fun ProductDetailScreen(
         if (existing != null) {
             existing
         } else {
-            val cat = ProductCatalog.products.find { it.name.equals(productName, ignoreCase = true) }
+            val cat = ProductCatalog.getProductByName(productName)
             if (cat != null) {
                 val icon = when (cat.category) {
                     "Mobiles" -> Icons.Outlined.Smartphone
@@ -129,6 +134,9 @@ fun ProductDetailScreen(
                 val s3 = specParts.getOrNull(2) ?: cat.brand
                 MatchProductDetail(
                     name = cat.name,
+                    brand = cat.brand,
+                    category = cat.category,
+                    subcategory = cat.subcategory,
                     price = cat.price,
                     rating = cat.rating,
                     recIndex = "Top Recommendation",
@@ -143,7 +151,8 @@ fun ProductDetailScreen(
                     matchPercentage = cat.matchScore,
                     matchProgress = cat.matchPercentage / 100f,
                     valueScore = "${cat.valueScore} /10",
-                    whyText = cat.recommendationSummary
+                    whyText = cat.recommendationSummary,
+                    needs = cat.needs
                 )
             } else {
                 matchProductsList.first()
@@ -198,7 +207,7 @@ fun ProductDetailScreen(
                             color = Color(0xFF1E2135)
                         )
                         Text(
-                            text = "Online classes - ${product.recIndex}",
+                            text = if (product.brand.isNotBlank()) "${product.brand} · ${product.subcategory}" else product.recIndex,
                             fontSize = 11.sp,
                             color = Color(0xFF7A8398)
                         )
@@ -248,7 +257,7 @@ fun ProductDetailScreen(
 
             // Sub-header Description & Tags
             Text(
-                text = "Wireless headphones that fit your priorities.",
+                text = if (product.brand.isNotBlank()) "${product.brand} ${product.subcategory} tailored to your priorities." else "Products that fit your priorities.",
                 fontSize = 13.sp,
                 color = Color(0xFF7A8398)
             )
@@ -259,9 +268,10 @@ fun ProductDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TagChip(text = "Under ₹3,000")
-                TagChip(text = "Clear mic")
-                TagChip(text = "Best match", isBestMatch = true)
+                val tags = product.needs.ifEmpty { listOf(product.category.ifBlank { "Top match" }, product.subcategory.ifBlank { "Recommended" }, "Best match") }
+                tags.take(3).forEachIndexed { idx, tagText ->
+                    TagChip(text = tagText, isBestMatch = idx == 2 || tagText.contains("Match", ignoreCase = true))
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -284,7 +294,10 @@ fun ProductDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f, fill = false),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
                                 imageVector = product.categoryIcon,
                                 contentDescription = null,
@@ -296,9 +309,13 @@ fun ProductDetailScreen(
                                 text = product.categoryBadge,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF5050F0)
+                                color = Color(0xFF5050F0),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         // Decision Tag Badge (BUY or CONSIDER)
                         Row(
@@ -312,7 +329,9 @@ fun ProductDetailScreen(
                                 text = if (product.decisionTag == "BUY") "✓ BUY" else "— CONSIDER",
                                 color = product.decisionTagText,
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -329,10 +348,10 @@ fun ProductDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Headphones,
+                            imageVector = product.categoryIcon,
                             contentDescription = product.name,
                             tint = Color(0xFF2A2A2A),
-                            modifier = Modifier.size(110.dp)
+                            modifier = Modifier.size(90.dp)
                         )
                     }
 

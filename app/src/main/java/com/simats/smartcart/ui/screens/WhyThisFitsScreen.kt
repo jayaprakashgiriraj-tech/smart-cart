@@ -18,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.ProductCatalog
 
 @Composable
 fun WhyThisFitsScreen(
@@ -31,6 +33,25 @@ fun WhyThisFitsScreen(
     onAlternativeClick: (String) -> Unit = {}
 ) {
     var isWishlisted by remember { mutableStateOf(false) }
+
+    val product = remember(productName) {
+        ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
+    }
+
+    val similarProduct = remember(product) {
+        ProductCatalog.getSimilarProducts(product).firstOrNull() ?: ProductCatalog.products.first { it.id != product.id }
+    }
+
+    val similarIcon = remember(similarProduct) {
+        when (similarProduct.category) {
+            "Mobiles" -> Icons.Outlined.Smartphone
+            "Laptops" -> Icons.Outlined.Laptop
+            "Audio" -> if (similarProduct.subcategory == "Speakers") Icons.Outlined.Speaker else Icons.Outlined.Headphones
+            "Fashion" -> if (similarProduct.needs.contains("Watches")) Icons.Outlined.Watch else if (similarProduct.needs.contains("Accessories")) Icons.Outlined.ShoppingBag else Icons.Outlined.Checkroom
+            "Home Appliances" -> if (similarProduct.subcategory == "Televisions") Icons.Outlined.Tv else Icons.Outlined.Kitchen
+            else -> Icons.Outlined.AutoAwesome
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFFAFBFF)
@@ -48,7 +69,10 @@ fun WhyThisFitsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(
                         onClick = onBackClick,
                         modifier = Modifier.size(36.dp)
@@ -68,9 +92,11 @@ fun WhyThisFitsScreen(
                             color = Color(0xFF1E2135)
                         )
                         Text(
-                            text = "$productName · Analysis continued",
+                            text = "${product.name} · Analysis continued",
                             fontSize = 11.sp,
-                            color = Color(0xFF7A8398)
+                            color = Color(0xFF7A8398),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -132,11 +158,11 @@ fun WhyThisFitsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    WhyReasonItem(text = "Budget: ₹201 below your ₹3,000 limit.")
+                    WhyReasonItem(text = "Verdict: ${product.recommendationSummary}")
                     Spacer(modifier = Modifier.height(10.dp))
-                    WhyReasonItem(text = "Classes: simple mic controls and multipoint let you switch between phone and laptop.")
+                    WhyReasonItem(text = "Best For: ${product.bestFor}")
                     Spacer(modifier = Modifier.height(10.dp))
-                    WhyReasonItem(text = "Routine: 40-hour battery cuts charging breaks.")
+                    WhyReasonItem(text = "Hardware: ${product.specs} with official ${product.warranty} warranty.")
                 }
             }
 
@@ -177,10 +203,11 @@ fun WhyThisFitsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        ProConBullet(text = "Lightweight, 160 g")
-                        ProConBullet(text = "40-hour battery")
-                        ProConBullet(text = "Multipoint pairing")
-                        ProConBullet(text = "Fast USB-C charging")
+                        val specItems = product.specs.split("·").map { it.trim() }
+                        ProConBullet(text = specItems.getOrNull(0) ?: "${product.brand} build quality")
+                        ProConBullet(text = specItems.getOrNull(1) ?: "${product.category} performance")
+                        ProConBullet(text = product.bestFor)
+                        ProConBullet(text = "${product.warranty} official warranty")
                     }
                 }
 
@@ -214,10 +241,38 @@ fun WhyThisFitsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        ProConBullet(text = "No ANC")
-                        ProConBullet(text = "No app EQ")
-                        ProConBullet(text = "On-ear pressure")
-                        ProConBullet(text = "Mic struggles outdoors")
+                        when (product.category) {
+                            "Mobiles" -> {
+                                ProConBullet(text = "Fast charger often sold separately")
+                                ProConBullet(text = "High refresh rate uses more battery in 5G gaming")
+                                ProConBullet(text = "No microSD expandable storage")
+                                ProConBullet(text = "Heavy camera usage needs daily charging")
+                            }
+                            "Laptops" -> {
+                                ProConBullet(text = "Soldered RAM/SSD on thin variants")
+                                ProConBullet(text = "Fan audible under peak prolonged loads")
+                                ProConBullet(text = "Charger brick needed for fast gaming power")
+                                ProConBullet(text = "Limited legacy port selection")
+                            }
+                            "Audio" -> {
+                                ProConBullet(text = "On-ear fit may feel snug for glasses wearers")
+                                ProConBullet(text = "No active noise cancelling on budget tier")
+                                ProConBullet(text = "Microphone best in quiet environments")
+                                ProConBullet(text = "Wired cable not included in box")
+                            }
+                            "Fashion" -> {
+                                ProConBullet(text = "Care label instructions must be followed")
+                                ProConBullet(text = "Natural dyes may fade in harsh direct sun")
+                                ProConBullet(text = "Check size guide for optimal fit")
+                                ProConBullet(text = "Gentle wash recommended for longevity")
+                            }
+                            else -> {
+                                ProConBullet(text = "Requires dedicated grounded wall outlet")
+                                ProConBullet(text = "Professional installation recommended")
+                                ProConBullet(text = "Annual filter/maintenance suggested")
+                                ProConBullet(text = "Delivery may take 2-4 business days")
+                            }
+                        }
                     }
                 }
             }
@@ -244,7 +299,7 @@ fun WhyThisFitsScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "No active noise cancellation or wired fallback. Consider another option for crowded commutes or long, pressure-sensitive wear.",
+                        text = "Every product has trade-offs. For ${product.name}, consider whether ${product.bestFor.lowercase()} fits your daily requirements and budget expectations.",
                         fontSize = 12.sp,
                         color = Color(0xFF8A5300),
                         lineHeight = 18.sp
@@ -264,11 +319,11 @@ fun WhyThisFitsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Soundcore H30i Alternative Card
+            // Similar Alternative Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onAlternativeClick("Soundcore H30i") },
+                    .clickable { onAlternativeClick(similarProduct.name) },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, Color(0xFFECEFF8))
@@ -287,10 +342,10 @@ fun WhyThisFitsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Headphones,
-                            contentDescription = "Soundcore H30i",
-                            tint = Color(0xFF2A2A2A),
-                            modifier = Modifier.size(48.dp)
+                            imageVector = similarIcon,
+                            contentDescription = similarProduct.name,
+                            tint = Color(0xFF5050F0),
+                            modifier = Modifier.size(40.dp)
                         )
                     }
 
@@ -303,29 +358,42 @@ fun WhyThisFitsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Soundcore H30i",
+                                text = similarProduct.name,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1E2135)
+                                color = Color(0xFF1E2135),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "88% match",
+                                text = similarProduct.matchScore,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF5050F0)
                             )
                         }
 
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = "${similarProduct.brand} · ${similarProduct.subcategory}",
+                            fontSize = 11.sp,
+                            color = Color(0xFF7A8398),
+                            fontWeight = FontWeight.Medium
+                        )
+
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "₹2,499",
+                            text = similarProduct.price,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF1E2135)
                         )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -336,16 +404,18 @@ fun WhyThisFitsScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "4.2",
+                                text = similarProduct.rating,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1E2135)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "70 hours battery",
+                                text = similarProduct.specs,
                                 fontSize = 11.sp,
-                                color = Color(0xFF7A8398)
+                                color = Color(0xFF7A8398),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -355,7 +425,7 @@ fun WhyThisFitsScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Choose H30i for 70-hour battery and app EQ. Trade-off: a less consistent mic in noisy spaces.",
+                text = "Choose ${similarProduct.name} for ${similarProduct.bestFor.lowercase()}. Value score: ${similarProduct.valueScore}/10.",
                 fontSize = 11.sp,
                 color = Color(0xFF7A8398),
                 lineHeight = 16.sp

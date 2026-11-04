@@ -22,9 +22,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.ProductCatalog
 
 @Composable
 fun FullProductOverviewScreen(
@@ -36,6 +38,51 @@ fun FullProductOverviewScreen(
 ) {
     var selectedImageIndex by remember { mutableIntStateOf(0) }
     var isWishlisted by remember { mutableStateOf(false) }
+
+    val product = remember(productName) {
+        ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
+    }
+
+    val primaryIcon = remember(product) {
+        when (product.category) {
+            "Mobiles" -> Icons.Outlined.Smartphone
+            "Laptops" -> Icons.Outlined.Laptop
+            "Audio" -> if (product.subcategory == "Speakers") Icons.Outlined.Speaker else Icons.Outlined.Headphones
+            "Fashion" -> if (product.needs.contains("Watches")) Icons.Outlined.Watch else if (product.needs.contains("Accessories")) Icons.Outlined.ShoppingBag else Icons.Outlined.Checkroom
+            "Home Appliances" -> if (product.subcategory == "Televisions") Icons.Outlined.Tv else Icons.Outlined.Kitchen
+            else -> Icons.Outlined.AutoAwesome
+        }
+    }
+
+    val galleryIcons = remember(product, primaryIcon) {
+        when (product.category) {
+            "Mobiles" -> listOf(primaryIcon, Icons.Outlined.CameraAlt, Icons.Outlined.BatteryChargingFull)
+            "Laptops" -> listOf(primaryIcon, Icons.Outlined.Memory, Icons.Outlined.BatteryChargingFull)
+            "Audio" -> listOf(primaryIcon, Icons.Outlined.VolumeUp, Icons.Outlined.Bluetooth)
+            "Fashion" -> listOf(primaryIcon, Icons.Outlined.Checkroom, Icons.Outlined.Style)
+            "Home Appliances" -> listOf(primaryIcon, Icons.Outlined.Power, Icons.Outlined.Speed)
+            else -> listOf(primaryIcon, Icons.Outlined.Star, Icons.Outlined.AutoAwesome)
+        }
+    }
+
+    val specTriad = remember(product) {
+        val parts = product.specs.split("·").map { it.trim() }
+        val s1 = parts.getOrNull(0) ?: (if (product.battery != "N/A") "${product.battery} battery" else product.category)
+        val s2 = parts.getOrNull(1) ?: product.subcategory
+        val s3 = parts.getOrNull(2) ?: product.brand
+        Triple(s1, s2, s3)
+    }
+
+    val specIcons = remember(product) {
+        when (product.category) {
+            "Mobiles" -> Triple(Icons.Outlined.Memory, Icons.Outlined.Storage, Icons.Outlined.Wifi)
+            "Laptops" -> Triple(Icons.Outlined.Memory, Icons.Outlined.Storage, Icons.Outlined.BatteryChargingFull)
+            "Audio" -> Triple(Icons.Outlined.BatteryChargingFull, Icons.Outlined.Bluetooth, Icons.Outlined.ShoppingBag)
+            "Fashion" -> Triple(Icons.Outlined.Checkroom, Icons.Outlined.ShoppingBag, Icons.Outlined.Verified)
+            "Home Appliances" -> Triple(Icons.Outlined.Power, Icons.Outlined.Speed, Icons.Outlined.Kitchen)
+            else -> Triple(Icons.Outlined.AutoAwesome, Icons.Outlined.Star, Icons.Outlined.ShoppingBag)
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFFAFBFF)
@@ -53,7 +100,10 @@ fun FullProductOverviewScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(
                         onClick = onBackClick,
                         modifier = Modifier.size(36.dp)
@@ -73,9 +123,11 @@ fun FullProductOverviewScreen(
                             color = Color(0xFF1E2135)
                         )
                         Text(
-                            text = "$productName · Overview",
+                            text = "${product.name} · Overview",
                             fontSize = 11.sp,
-                            color = Color(0xFF7A8398)
+                            color = Color(0xFF7A8398),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -135,11 +187,12 @@ fun FullProductOverviewScreen(
                         .background(Color(0xFFF5F6FA)),
                     contentAlignment = Alignment.Center
                 ) {
+                    val currentIcon = galleryIcons.getOrElse(selectedImageIndex) { primaryIcon }
                     Icon(
-                        imageVector = Icons.Outlined.Headphones,
-                        contentDescription = productName,
+                        imageVector = currentIcon,
+                        contentDescription = product.name,
                         tint = Color(0xFF2A2A2A),
-                        modifier = Modifier.size(120.dp)
+                        modifier = Modifier.size(110.dp)
                     )
 
                     // Page counter badge (e.g. 1 / 3)
@@ -152,7 +205,7 @@ fun FullProductOverviewScreen(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "${selectedImageIndex + 1} / 3",
+                            text = "${selectedImageIndex + 1} / ${galleryIcons.size}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1E2135)
@@ -164,7 +217,7 @@ fun FullProductOverviewScreen(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    repeat(3) { index ->
+                    galleryIcons.forEachIndexed { index, iconItem ->
                         val isSelected = selectedImageIndex == index
                         Box(
                             modifier = Modifier
@@ -182,10 +235,10 @@ fun FullProductOverviewScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Headphones,
+                                imageVector = iconItem,
                                 contentDescription = null,
-                                tint = Color(0xFF2A2A2A),
-                                modifier = Modifier.size(32.dp)
+                                tint = if (isSelected) Color(0xFF5050F0) else Color(0xFF2A2A2A),
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }
@@ -196,7 +249,7 @@ fun FullProductOverviewScreen(
 
             // Title
             Text(
-                text = productName,
+                text = product.name,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF1E2135)
@@ -211,7 +264,7 @@ fun FullProductOverviewScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "₹2,799",
+                    text = product.price,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFF1E2135)
@@ -226,14 +279,14 @@ fun FullProductOverviewScreen(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "4.3",
+                        text = product.rating,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1E2135)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "240 sample reviews",
+                        text = "${product.reviewCount} customer reviews",
                         fontSize = 11.sp,
                         color = Color(0xFF7A8398)
                     )
@@ -247,19 +300,21 @@ fun FullProductOverviewScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                val (s1, s2, s3) = specTriad
+                val (i1, i2, i3) = specIcons
                 OverviewSpecBox(
-                    icon = Icons.Outlined.BatteryChargingFull,
-                    text = "40h battery",
+                    icon = i1,
+                    text = s1,
                     modifier = Modifier.weight(1f)
                 )
                 OverviewSpecBox(
-                    icon = Icons.Outlined.Bluetooth,
-                    text = "Bluetooth 5.0",
+                    icon = i2,
+                    text = s2,
                     modifier = Modifier.weight(1f)
                 )
                 OverviewSpecBox(
-                    icon = Icons.Outlined.ShoppingBag,
-                    text = "160 g",
+                    icon = i3,
+                    text = s3,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -311,7 +366,7 @@ fun FullProductOverviewScreen(
 
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = "8.6",
+                                text = "${product.valueScore}",
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF1A8068)
@@ -329,7 +384,7 @@ fun FullProductOverviewScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "A balanced choice for online classes—if you mostly study in a quiet room.",
+                        text = product.recommendationSummary,
                         fontSize = 12.sp,
                         color = Color(0xFF1A8068),
                         lineHeight = 18.sp,
@@ -345,18 +400,21 @@ fun FullProductOverviewScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                val budgetScore = "${((product.valueScore + 0.3).coerceIn(8.0, 9.8)).let { "%.1f".format(it) }}/10"
+                val featureScore = "${((product.matchPercentage / 10.0).coerceIn(8.2, 9.9)).let { "%.1f".format(it) }}/10"
+                val valueScore = "${product.valueScore}/10"
                 SubScoreCard(
-                    score = "9.3/10",
+                    score = budgetScore,
                     label = "Budget Match",
                     modifier = Modifier.weight(1f)
                 )
                 SubScoreCard(
-                    score = "8.4/10",
+                    score = featureScore,
                     label = "Feature Match",
                     modifier = Modifier.weight(1f)
                 )
                 SubScoreCard(
-                    score = "8.6/10",
+                    score = valueScore,
                     label = "Value for Money",
                     modifier = Modifier.weight(1f)
                 )
@@ -488,7 +546,9 @@ private fun OverviewSpecBox(
                 text = text,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF1E2135)
+                color = Color(0xFF1E2135),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
