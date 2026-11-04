@@ -4,7 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,11 +21,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.Product
 import com.simats.smartcart.data.ProductCatalog
 
 data class SpecRowData(
@@ -33,32 +39,113 @@ data class SpecRowData(
     val isBoldValue1: Boolean = false
 )
 
+private fun getCategorySpecRows(p1: Product, p2: Product): List<SpecRowData> {
+    return when (p1.category) {
+        "Mobiles" -> {
+            val p1Specs = p1.specs.split("·").map { it.trim() }
+            val p2Specs = p2.specs.split("·").map { it.trim() }
+            listOf(
+                SpecRowData("RAM / Storage", p1Specs.getOrNull(0) ?: "8GB / 256GB", p2Specs.getOrNull(0) ?: "8GB / 128GB"),
+                SpecRowData("Key Hardware", p1Specs.getOrNull(1) ?: p1.brand, p2Specs.getOrNull(1) ?: p2.brand),
+                SpecRowData("Network / 5G", p1Specs.getOrNull(2) ?: "5G", p2Specs.getOrNull(2) ?: "5G"),
+                SpecRowData("Primary Highlight", p1.bestFor, p2.bestFor),
+                SpecRowData("Customer Rating", "★ ${p1.rating} (${p1.reviewCount})", "★ ${p2.rating} (${p2.reviewCount})", isBoldValue1 = p1.rating >= p2.rating),
+                SpecRowData("Official Warranty", p1.warranty, p2.warranty),
+                SpecRowData("Match Score", p1.matchScore, p2.matchScore, isBoldValue1 = p1.matchPercentage >= p2.matchPercentage),
+                SpecRowData("Value (/10)", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
+            )
+        }
+        "Laptops" -> {
+            val p1Specs = p1.specs.split("·").map { it.trim() }
+            val p2Specs = p2.specs.split("·").map { it.trim() }
+            listOf(
+                SpecRowData("Processor", p1Specs.getOrNull(0) ?: p1.brand, p2Specs.getOrNull(0) ?: p2.brand),
+                SpecRowData("Memory & Storage", p1Specs.getOrNull(1) ?: "16GB / 512GB", p2Specs.getOrNull(1) ?: "8GB / 256GB"),
+                SpecRowData("Display / Build", p1Specs.getOrNull(2) ?: p1.subcategory, p2Specs.getOrNull(2) ?: p2.subcategory),
+                SpecRowData("Battery Life", p1.battery, p2.battery),
+                SpecRowData("Weight", p1.weight, p2.weight),
+                SpecRowData("Customer Rating", "★ ${p1.rating}", "★ ${p2.rating}"),
+                SpecRowData("Warranty", p1.warranty, p2.warranty),
+                SpecRowData("Value (/10)", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
+            )
+        }
+        "Fashion" -> {
+            listOf(
+                SpecRowData("Brand & Group", "${p1.brand} · ${p1.subcategory}", "${p2.brand} · ${p2.subcategory}"),
+                SpecRowData("Best For", p1.bestFor, p2.bestFor),
+                SpecRowData("Fabric & Style", p1.specs, p2.specs),
+                SpecRowData("Rating", "★ ${p1.rating}", "★ ${p2.rating}"),
+                SpecRowData("Availability", p1.stockStatus, p2.stockStatus),
+                SpecRowData("Return Policy", "7 Days Replacement", "7 Days Replacement"),
+                SpecRowData("Value (/10)", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
+            )
+        }
+        "Home Appliances" -> {
+            val p1Specs = p1.specs.split("·").map { it.trim() }
+            val p2Specs = p2.specs.split("·").map { it.trim() }
+            listOf(
+                SpecRowData("Capacity / Spec", p1Specs.getOrNull(0) ?: p1.subcategory, p2Specs.getOrNull(0) ?: p2.subcategory),
+                SpecRowData("Efficiency / Tech", p1Specs.getOrNull(1) ?: p1.brand, p2Specs.getOrNull(1) ?: p2.brand),
+                SpecRowData("Special Feature", p1.bestFor, p2.bestFor),
+                SpecRowData("Rating", "★ ${p1.rating} (${p1.reviewCount})", "★ ${p2.rating} (${p2.reviewCount})"),
+                SpecRowData("Official Warranty", p1.warranty, p2.warranty),
+                SpecRowData("Value (/10)", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
+            )
+        }
+        else -> { // Audio and general fallback
+            listOf(
+                SpecRowData("Battery¹", p1.battery, p2.battery, isBoldValue1 = p1.battery != p2.battery),
+                SpecRowData("Call mic²", p1.callMic, p2.callMic, isBoldValue1 = true),
+                SpecRowData("Weight", p1.weight, p2.weight, isBoldValue1 = p1.weight != p2.weight),
+                SpecRowData("Multipoint", p1.multipoint, p2.multipoint),
+                SpecRowData("Active NC", p1.activeNC, p2.activeNC),
+                SpecRowData("App EQ", p1.appEQ, p2.appEQ),
+                SpecRowData("Warranty¹", p1.warranty, p2.warranty),
+                SpecRowData("Value (/10)²", "${p1.valueScore}", "${p2.valueScore}", isHighlighted = true, isBoldValue1 = p1.valueScore >= p2.valueScore)
+            )
+        }
+    }
+}
+
 @Composable
 fun SmartComparisonScreen(
-    product1Name: String = "JBL Tune 510BT",
-    product2Name: String = "Soundcore H30i",
+    product1Name: String = "Samsung Galaxy S23",
+    product2Name: String = "Apple iPhone 15",
     onBackClick: () -> Unit = {},
     onTabSelected: (Int) -> Unit = {},
     onSeeSummaryClick: (String, String) -> Unit = { _, _ -> }
 ) {
     var selectedBottomTab by remember { mutableIntStateOf(2) } // 2 is Compare tab
 
-    val product1 = remember(product1Name) { ProductCatalog.getProductByName(product1Name) ?: ProductCatalog.products.first() }
-    val product2 = remember(product2Name) { ProductCatalog.getProductByName(product2Name) ?: ProductCatalog.products.getOrElse(1) { ProductCatalog.products.first() } }
+    var currentProd1Name by remember(product1Name) { mutableStateOf(product1Name) }
+    var currentProd2Name by remember(product2Name, product1Name) {
+        val p1 = ProductCatalog.getProductByName(product1Name)
+        val candidate = ProductCatalog.getProductByName(product2Name)
+        val initialP2 = if (candidate.category.equals(p1.category, ignoreCase = true) && candidate.id != p1.id) {
+            candidate.name
+        } else {
+            ProductCatalog.getSimilarProducts(p1).firstOrNull()?.name ?: candidate.name
+        }
+        mutableStateOf(initialP2)
+    }
 
-    val winner = if (product1.matchPercentage >= product2.matchPercentage) product1 else product2
+    val product1 = remember(currentProd1Name) { ProductCatalog.getProductByName(currentProd1Name) }
+    val product2 = remember(currentProd2Name) { ProductCatalog.getProductByName(currentProd2Name) }
+
+    var showChangeP2Sheet by remember { mutableStateOf(false) }
+
+    val icon1 = remember(product1) { getProductCategoryIcon(product1) }
+    val icon2 = remember(product2) { getProductCategoryIcon(product2) }
+
+    val winner = if (product1.valueScore >= product2.valueScore) product1 else product2
+    val loser = if (winner.id == product1.id) product2 else product1
 
     val specRows = remember(product1, product2) {
-        listOf(
-            SpecRowData("Battery¹", product1.battery, product2.battery, isBoldValue1 = product1.battery != product2.battery),
-            SpecRowData("Call mic²", product1.callMic, product2.callMic, isBoldValue1 = true),
-            SpecRowData("Weight", product1.weight, product2.weight, isBoldValue1 = product1.weight != product2.weight),
-            SpecRowData("Multipoint", product1.multipoint, product2.multipoint),
-            SpecRowData("Active NC", product1.activeNC, product2.activeNC),
-            SpecRowData("App EQ", product1.appEQ, product2.appEQ),
-            SpecRowData("Warranty¹", product1.warranty, product2.warranty),
-            SpecRowData("Value (/10)²", "${product1.valueScore}", "${product2.valueScore}", isHighlighted = true, isBoldValue1 = product1.valueScore >= product2.valueScore)
-        )
+        getCategorySpecRows(product1, product2)
+    }
+
+    val otherCompetitors = remember(product1, product2) {
+        ProductCatalog.getSimilarProducts(product1).filter { it.id != product2.id }
     }
 
     Scaffold(
@@ -106,9 +193,11 @@ fun SmartComparisonScreen(
                             color = Color(0xFF1E2135)
                         )
                         Text(
-                            text = "For online classes · Mic, comfort, battery",
+                            text = "${product1.category} · ${product1.brand} vs ${product2.brand}",
                             fontSize = 11.sp,
-                            color = Color(0xFF7A8398)
+                            color = Color(0xFF7A8398),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -152,6 +241,48 @@ fun SmartComparisonScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Search Bar Button to pick/search any product to compare
+            Surface(
+                onClick = { showChangeP2Sheet = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E6F5))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF5050F0),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Search products to compare...",
+                        fontSize = 13.sp,
+                        color = Color(0xFF7A8398),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                        contentDescription = null,
+                        tint = Color(0xFF5050F0),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Product Cards Header Row
@@ -180,20 +311,22 @@ fun SmartComparisonScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Headphones,
-                                contentDescription = product1Name,
+                                imageVector = icon1,
+                                contentDescription = product1.name,
                                 tint = Color(0xFF2A2A2A),
-                                modifier = Modifier.size(50.dp)
+                                modifier = Modifier.size(46.dp)
                             )
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = product1Name,
+                            text = product1.name,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E2135)
+                            color = Color(0xFF1E2135),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -204,14 +337,14 @@ fun SmartComparisonScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "₹2,799",
+                                text = product1.price,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF1E2135)
                             )
                             Text(
-                                text = "92%",
-                                fontSize = 12.sp,
+                                text = product1.matchScore,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF5050F0)
                             )
@@ -240,20 +373,40 @@ fun SmartComparisonScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Headphones,
-                                contentDescription = product2Name,
+                                imageVector = icon2,
+                                contentDescription = product2.name,
                                 tint = Color(0xFF2A2A2A),
-                                modifier = Modifier.size(50.dp)
+                                modifier = Modifier.size(46.dp)
                             )
+
+                            // Change chip inside box
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.White.copy(alpha = 0.9f))
+                                    .clickable { showChangeP2Sheet = true }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Swap",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF5050F0)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = product2Name,
+                            text = product2.name,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E2135)
+                            color = Color(0xFF1E2135),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
@@ -264,18 +417,53 @@ fun SmartComparisonScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "₹2,499",
+                                text = product2.price,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF1E2135)
                             )
                             Text(
-                                text = "88%",
-                                fontSize = 12.sp,
+                                text = product2.matchScore,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF5050F0)
                             )
                         }
+                    }
+                }
+            }
+
+            // Quick Switcher Row
+            if (otherCompetitors.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Compare ${product1.brand} with another:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E2135)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(otherCompetitors) { rival ->
+                        SuggestionChip(
+                            onClick = { currentProd2Name = rival.name },
+                            label = {
+                                Text(
+                                    text = "+ ${rival.name} (${rival.price})",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF5050F0)
+                                )
+                            },
+                            border = BorderStroke(1.dp, Color(0xFFD8DEF5)),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                containerColor = Color.White
+                            )
+                        )
                     }
                 }
             }
@@ -297,29 +485,34 @@ fun SmartComparisonScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(rowBg)
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = row.label,
                                 fontSize = 11.sp,
                                 color = Color(0xFF7A8398),
+                                fontWeight = FontWeight.Medium,
                                 modifier = Modifier.weight(1.1f)
                             )
                             Text(
                                 text = row.value1,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 color = if (row.isHighlighted) Color(0xFF5050F0) else Color(0xFF1E2135),
                                 fontWeight = if (row.isBoldValue1 || row.isHighlighted) FontWeight.Bold else FontWeight.Medium,
                                 textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
                                 text = row.value2,
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 color = Color(0xFF1E2135),
                                 fontWeight = if (row.isHighlighted) FontWeight.Bold else FontWeight.Medium,
                                 textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -354,7 +547,7 @@ fun SmartComparisonScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "JBL: best for your class routine",
+                            text = "${winner.name}: top overall value pick",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1A8068)
@@ -364,7 +557,7 @@ fun SmartComparisonScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Lighter weight and clearer indoor calls beat a longer battery for your priorities.",
+                        text = "${winner.name} (${winner.valueScore}/10) delivers greater value with ${winner.bestFor.lowercase()}. Consider ${loser.name} (${loser.price}) if you prioritize ${loser.bestFor.lowercase()}.",
                         fontSize = 12.sp,
                         color = Color(0xFF1A8068),
                         lineHeight = 18.sp,
@@ -409,6 +602,18 @@ fun SmartComparisonScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Bottom Sheet to choose another product
+        if (showChangeP2Sheet) {
+            CompareProductSheet(
+                baseProduct = product1,
+                onSelectProduct = { chosen ->
+                    currentProd2Name = chosen.name
+                    showChangeP2Sheet = false
+                },
+                onDismiss = { showChangeP2Sheet = false }
+            )
         }
     }
 }

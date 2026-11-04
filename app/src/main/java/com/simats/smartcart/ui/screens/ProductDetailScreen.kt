@@ -111,52 +111,49 @@ fun ProductDetailScreen(
     productName: String = "JBL Tune 510BT",
     onBackClick: () -> Unit = {},
     onViewDetailsClick: (String) -> Unit = {},
-    onCompareClick: () -> Unit = {}
+    onCompareClick: (String, String) -> Unit = { _, _ -> }
 ) {
+    var showCompareSheet by remember { mutableStateOf(false) }
     val currentProductDetail = remember(productName) {
         val existing = matchProductsList.find { it.name.equals(productName, ignoreCase = true) }
         if (existing != null) {
             existing
         } else {
             val cat = ProductCatalog.getProductByName(productName)
-            if (cat != null) {
-                val icon = when (cat.category) {
-                    "Mobiles" -> Icons.Outlined.Smartphone
-                    "Laptops" -> Icons.Outlined.Laptop
-                    "Audio" -> if (cat.subcategory == "Speakers") Icons.Outlined.Speaker else Icons.Outlined.Headphones
-                    "Fashion" -> if (cat.needs.contains("Watches")) Icons.Outlined.Watch else if (cat.needs.contains("Accessories")) Icons.Outlined.ShoppingBag else Icons.Outlined.Checkroom
-                    "Home Appliances" -> Icons.Outlined.Kitchen
-                    else -> Icons.Outlined.AutoAwesome
-                }
-                val specParts = cat.specs.split("·").map { it.trim() }
-                val s1 = specParts.getOrNull(0) ?: cat.category
-                val s2 = specParts.getOrNull(1) ?: cat.subcategory
-                val s3 = specParts.getOrNull(2) ?: cat.brand
-                MatchProductDetail(
-                    name = cat.name,
-                    brand = cat.brand,
-                    category = cat.category,
-                    subcategory = cat.subcategory,
-                    price = cat.price,
-                    rating = cat.rating,
-                    recIndex = "Top Recommendation",
-                    categoryBadge = cat.bestFor.uppercase(),
-                    categoryIcon = icon,
-                    decisionTag = "BUY",
-                    decisionTagBg = Color(0xFFE6F5F0),
-                    decisionTagText = Color(0xFF1A8068),
-                    spec1 = s1,
-                    spec2 = s2,
-                    spec3 = s3,
-                    matchPercentage = cat.matchScore,
-                    matchProgress = cat.matchPercentage / 100f,
-                    valueScore = "${cat.valueScore} /10",
-                    whyText = cat.recommendationSummary,
-                    needs = cat.needs
-                )
-            } else {
-                matchProductsList.first()
+            val icon = when (cat.category) {
+                "Mobiles" -> Icons.Outlined.Smartphone
+                "Laptops" -> Icons.Outlined.Laptop
+                "Audio" -> if (cat.subcategory == "Speakers") Icons.Outlined.Speaker else Icons.Outlined.Headphones
+                "Fashion" -> if (cat.needs.contains("Watches")) Icons.Outlined.Watch else if (cat.needs.contains("Accessories")) Icons.Outlined.ShoppingBag else Icons.Outlined.Checkroom
+                "Home Appliances" -> Icons.Outlined.Kitchen
+                else -> Icons.Outlined.AutoAwesome
             }
+            val specParts = cat.specs.split("·").map { it.trim() }
+            val s1 = specParts.getOrNull(0) ?: cat.category
+            val s2 = specParts.getOrNull(1) ?: cat.subcategory
+            val s3 = specParts.getOrNull(2) ?: cat.brand
+            MatchProductDetail(
+                name = cat.name,
+                brand = cat.brand,
+                category = cat.category,
+                subcategory = cat.subcategory,
+                price = cat.price,
+                rating = cat.rating,
+                recIndex = "Top Recommendation",
+                categoryBadge = cat.bestFor.uppercase(),
+                categoryIcon = icon,
+                decisionTag = "BUY",
+                decisionTagBg = Color(0xFFE6F5F0),
+                decisionTagText = Color(0xFF1A8068),
+                spec1 = s1,
+                spec2 = s2,
+                spec3 = s3,
+                matchPercentage = cat.matchScore,
+                matchProgress = cat.matchPercentage / 100f,
+                valueScore = "${cat.valueScore} /10",
+                whyText = cat.recommendationSummary,
+                needs = cat.needs
+            )
         }
     }
 
@@ -506,7 +503,7 @@ fun ProductDetailScreen(
                         }
 
                         OutlinedButton(
-                            onClick = onCompareClick,
+                            onClick = { showCompareSheet = true },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp),
@@ -579,7 +576,11 @@ fun ProductDetailScreen(
                 } else {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onCompareClick() }
+                        modifier = Modifier.clickable {
+                            val baseP = ProductCatalog.getProductByName(product.name)
+                            val rival = ProductCatalog.getSimilarProducts(baseP).firstOrNull()?.name ?: "Apple iPhone 15"
+                            onCompareClick(product.name, rival)
+                        }
                     ) {
                         Text(
                             text = "Compare your shortlist",
@@ -599,6 +600,18 @@ fun ProductDetailScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (showCompareSheet) {
+            val baseP = ProductCatalog.getProductByName(product.name)
+            CompareProductSheet(
+                baseProduct = baseP,
+                onSelectProduct = { chosen ->
+                    showCompareSheet = false
+                    onCompareClick(product.name, chosen.name)
+                },
+                onDismiss = { showCompareSheet = false }
+            )
         }
     }
 }

@@ -29,10 +29,11 @@ fun WhyThisFitsScreen(
     productName: String = "JBL Tune 510BT",
     onBackClick: () -> Unit = {},
     onWishlistClick: () -> Unit = {},
-    onCompareClick: () -> Unit = {},
+    onCompareClick: (String, String) -> Unit = { _, _ -> },
     onAlternativeClick: (String) -> Unit = {}
 ) {
     var isWishlisted by remember { mutableStateOf(false) }
+    var showCompareSheet by remember { mutableStateOf(false) }
 
     val product = remember(productName) {
         ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
@@ -465,7 +466,7 @@ fun WhyThisFitsScreen(
                 }
 
                 Button(
-                    onClick = onCompareClick,
+                    onClick = { showCompareSheet = true },
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -489,6 +490,17 @@ fun WhyThisFitsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (showCompareSheet) {
+            CompareProductSheet(
+                baseProduct = product,
+                onSelectProduct = { chosen ->
+                    showCompareSheet = false
+                    onCompareClick(product.name, chosen.name)
+                },
+                onDismiss = { showCompareSheet = false }
+            )
         }
     }
 }

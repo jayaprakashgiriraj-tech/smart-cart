@@ -1162,10 +1162,19 @@ object ProductCatalog {
         return sorted
     }
 
-    fun getProductByName(name: String): Product? {
-        val clean = name.trim()
+    fun findProductByNameOrNull(name: String): Product? {
+        val clean = try {
+            java.net.URLDecoder.decode(name, "UTF-8")
+        } catch (e: Exception) {
+            name
+        }.trim()
+        if (clean.isBlank()) return null
         return products.find { it.name.equals(clean, ignoreCase = true) }
             ?: products.find { it.name.contains(clean, ignoreCase = true) || clean.contains(it.name, ignoreCase = true) }
+    }
+
+    fun getProductByName(name: String): Product {
+        return findProductByNameOrNull(name) ?: products.first()
     }
 
     fun getSimilarProducts(product: Product): List<Product> {

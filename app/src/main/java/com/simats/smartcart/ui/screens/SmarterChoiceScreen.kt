@@ -22,11 +22,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.ProductCatalog
 
 @Composable
 fun SmarterChoiceScreen(
-    product1Name: String = "JBL Tune 510BT",
-    product2Name: String = "Soundcore H30i",
+    product1Name: String = "Samsung Galaxy S23",
+    product2Name: String = "Apple iPhone 15",
     onBackClick: () -> Unit = {},
     onTabSelected: (Int) -> Unit = {},
     onViewDetailsClick: (String) -> Unit = {},
@@ -34,6 +35,11 @@ fun SmarterChoiceScreen(
 ) {
     var selectedBottomTab by remember { mutableIntStateOf(2) } // 2 is Compare tab
     var isSaved by remember { mutableStateOf(false) }
+
+    val product1 = remember(product1Name) { ProductCatalog.getProductByName(product1Name) }
+    val product2 = remember(product2Name) { ProductCatalog.getProductByName(product2Name) }
+    val winner = if (product1.valueScore >= product2.valueScore) product1 else product2
+    val loser = if (winner.id == product1.id) product2 else product1
 
     Scaffold(
         bottomBar = {
@@ -80,7 +86,7 @@ fun SmarterChoiceScreen(
                             color = Color(0xFF1E2135)
                         )
                         Text(
-                            text = "Comparison continued · JBL vs Soundcore",
+                            text = "Comparison continued · ${product1.brand} vs ${product2.brand}",
                             fontSize = 11.sp,
                             color = Color(0xFF7A8398)
                         )
@@ -163,7 +169,7 @@ fun SmarterChoiceScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "JBL Tune 510BT wins for you.",
+                        text = "${winner.name} wins for you.",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF1E2135)
@@ -172,7 +178,7 @@ fun SmarterChoiceScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Spend ₹300 more for a lighter headset and a better indoor call experience. Both cover a full day of classes comfortably on battery.",
+                        text = "${winner.name} delivers higher overall value (${winner.valueScore}/10) with ${winner.bestFor.lowercase()}. ${loser.name} (${loser.price}) is a worthy alternative if you prefer ${loser.bestFor.lowercase()}.",
                         fontSize = 13.sp,
                         color = Color(0xFF7A8398),
                         lineHeight = 18.sp
@@ -205,21 +211,22 @@ fun SmarterChoiceScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     PriorityRow(
-                        icon = Icons.Outlined.Mic,
-                        title = "Clear calls + lighter fit",
-                        winner = "JBL"
+                        icon = Icons.Outlined.Star,
+                        title = "Higher value rating (${winner.valueScore}/10)",
+                        winner = winner.brand
                     )
                     HorizontalDivider(color = Color(0xFFF0F2F8), thickness = 1.dp)
                     PriorityRow(
-                        icon = Icons.Outlined.BatteryChargingFull,
-                        title = "Battery + app EQ",
-                        winner = "Soundcore"
+                        icon = Icons.Outlined.AutoAwesome,
+                        title = winner.bestFor,
+                        winner = winner.brand
                     )
                     HorizontalDivider(color = Color(0xFFF0F2F8), thickness = 1.dp)
+                    val cheaper = if (product1.numericPrice <= product2.numericPrice) product1 else product2
                     PriorityRow(
                         icon = Icons.Outlined.AccountBalanceWallet,
-                        title = "Lower spend",
-                        winner = "Soundcore"
+                        title = "Lower spend (${cheaper.price})",
+                        winner = cheaper.brand
                     )
                 }
             }
@@ -246,14 +253,14 @@ fun SmarterChoiceScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Choose JBL: 30 fewer battery hours and no app EQ.",
+                        text = "Choose ${winner.name}: ${winner.specs} with official ${winner.warranty} warranty.",
                         fontSize = 12.sp,
                         color = Color(0xFF8A5300),
                         lineHeight = 18.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Choose Soundcore: a heavier fit and less consistent calls in noisy rooms. Neither has active noise cancellation.",
+                        text = "Choose ${loser.name}: ${loser.specs} with official ${loser.warranty} warranty.",
                         fontSize = 12.sp,
                         color = Color(0xFF8A5300),
                         lineHeight = 18.sp
@@ -279,7 +286,7 @@ fun SmarterChoiceScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Button(
-                    onClick = { onViewDetailsClick(product1Name) },
+                    onClick = { onViewDetailsClick(winner.name) },
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -287,7 +294,7 @@ fun SmarterChoiceScreen(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        text = "View JBL details",
+                        text = "View ${winner.brand} details",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

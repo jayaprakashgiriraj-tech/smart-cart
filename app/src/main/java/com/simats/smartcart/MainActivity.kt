@@ -242,22 +242,22 @@ class MainActivity : ComponentActivity() {
                                 onViewDetailsClick = { name ->
                                     navController.navigate("full_product_overview/${Uri.encode(name)}")
                                 },
-                                onCompareClick = {
-                                    navController.navigate("compare")
+                                onCompareClick = { p1, p2 ->
+                                    navController.navigate("compare?prod1=${Uri.encode(p1)}&prod2=${Uri.encode(p2)}")
                                 }
                             )
                         }
                         composable("product_detail") {
                             ProductDetailScreen(
-                                productName = "JBL Tune 510BT",
+                                productName = "Samsung Galaxy S23",
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
                                 onViewDetailsClick = { name ->
                                     navController.navigate("full_product_overview/${Uri.encode(name)}")
                                 },
-                                onCompareClick = {
-                                    navController.navigate("compare")
+                                onCompareClick = { p1, p2 ->
+                                    navController.navigate("compare?prod1=${Uri.encode(p1)}&prod2=${Uri.encode(p2)}")
                                 }
                             )
                         }
@@ -265,14 +265,14 @@ class MainActivity : ComponentActivity() {
                             route = "full_product_overview/{productName}",
                             arguments = listOf(navArgument("productName") { type = NavType.StringType })
                         ) { backStackEntry ->
-                            val productName = backStackEntry.arguments?.getString("productName") ?: "JBL Tune 510BT"
+                            val productName = backStackEntry.arguments?.getString("productName") ?: "Samsung Galaxy S23"
                             FullProductOverviewScreen(
                                 productName = productName,
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
-                                onCompareClick = {
-                                    navController.navigate("compare")
+                                onCompareClick = { p1, p2 ->
+                                    navController.navigate("compare?prod1=${Uri.encode(p1)}&prod2=${Uri.encode(p2)}")
                                 },
                                 onWhyItFitsClick = {
                                     navController.navigate("why_this_fits/${Uri.encode(productName)}")
@@ -281,12 +281,12 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("full_product_overview") {
                             FullProductOverviewScreen(
-                                productName = "JBL Tune 510BT",
+                                productName = "Samsung Galaxy S23",
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
-                                onCompareClick = {
-                                    navController.navigate("compare")
+                                onCompareClick = { p1, p2 ->
+                                    navController.navigate("compare?prod1=${Uri.encode(p1)}&prod2=${Uri.encode(p2)}")
                                 },
                                 onWhyItFitsClick = {
                                     navController.navigate("why_this_fits")
@@ -297,14 +297,14 @@ class MainActivity : ComponentActivity() {
                             route = "why_this_fits/{productName}",
                             arguments = listOf(navArgument("productName") { type = NavType.StringType })
                         ) { backStackEntry ->
-                            val productName = backStackEntry.arguments?.getString("productName") ?: "JBL Tune 510BT"
+                            val productName = backStackEntry.arguments?.getString("productName") ?: "Samsung Galaxy S23"
                             WhyThisFitsScreen(
                                 productName = productName,
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
-                                onCompareClick = {
-                                    navController.navigate("compare")
+                                onCompareClick = { p1, p2 ->
+                                    navController.navigate("compare?prod1=${Uri.encode(p1)}&prod2=${Uri.encode(p2)}")
                                 },
                                 onAlternativeClick = { altName ->
                                     navController.navigate("product_detail/${Uri.encode(altName)}")
@@ -313,12 +313,12 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("why_this_fits") {
                             WhyThisFitsScreen(
-                                productName = "JBL Tune 510BT",
+                                productName = "Samsung Galaxy S23",
                                 onBackClick = {
                                     navController.popBackStack()
                                 },
-                                onCompareClick = {
-                                    navController.navigate("compare")
+                                onCompareClick = { p1, p2 ->
+                                    navController.navigate("compare?prod1=${Uri.encode(p1)}&prod2=${Uri.encode(p2)}")
                                 },
                                 onAlternativeClick = { altName ->
                                     navController.navigate("product_detail/${Uri.encode(altName)}")
@@ -328,12 +328,12 @@ class MainActivity : ComponentActivity() {
                         composable(
                             route = "compare?prod1={prod1}&prod2={prod2}",
                             arguments = listOf(
-                                navArgument("prod1") { type = NavType.StringType; defaultValue = "JBL Tune 510BT" },
-                                navArgument("prod2") { type = NavType.StringType; defaultValue = "Soundcore H30i" }
+                                navArgument("prod1") { type = NavType.StringType; defaultValue = "Samsung Galaxy S23" },
+                                navArgument("prod2") { type = NavType.StringType; defaultValue = "Apple iPhone 15" }
                             )
                         ) { backStackEntry ->
-                            val prod1 = backStackEntry.arguments?.getString("prod1") ?: "JBL Tune 510BT"
-                            val prod2 = backStackEntry.arguments?.getString("prod2") ?: "Soundcore H30i"
+                            val prod1 = backStackEntry.arguments?.getString("prod1") ?: "Samsung Galaxy S23"
+                            val prod2 = backStackEntry.arguments?.getString("prod2") ?: "Apple iPhone 15"
                             SmartComparisonScreen(
                                 product1Name = prod1,
                                 product2Name = prod2,

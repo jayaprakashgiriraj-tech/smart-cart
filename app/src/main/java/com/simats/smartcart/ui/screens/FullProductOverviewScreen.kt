@@ -33,11 +33,12 @@ fun FullProductOverviewScreen(
     productName: String = "JBL Tune 510BT",
     onBackClick: () -> Unit = {},
     onWishlistClick: () -> Unit = {},
-    onCompareClick: () -> Unit = {},
+    onCompareClick: (String, String) -> Unit = { _, _ -> },
     onWhyItFitsClick: () -> Unit = {}
 ) {
     var selectedImageIndex by remember { mutableIntStateOf(0) }
     var isWishlisted by remember { mutableStateOf(false) }
+    var showCompareSheet by remember { mutableStateOf(false) }
 
     val product = remember(productName) {
         ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
@@ -58,7 +59,7 @@ fun FullProductOverviewScreen(
         when (product.category) {
             "Mobiles" -> listOf(primaryIcon, Icons.Outlined.CameraAlt, Icons.Outlined.BatteryChargingFull)
             "Laptops" -> listOf(primaryIcon, Icons.Outlined.Memory, Icons.Outlined.BatteryChargingFull)
-            "Audio" -> listOf(primaryIcon, Icons.Outlined.VolumeUp, Icons.Outlined.Bluetooth)
+            "Audio" -> listOf(primaryIcon, Icons.Outlined.GraphicEq, Icons.Outlined.Bluetooth)
             "Fashion" -> listOf(primaryIcon, Icons.Outlined.Checkroom, Icons.Outlined.Style)
             "Home Appliances" -> listOf(primaryIcon, Icons.Outlined.Power, Icons.Outlined.Speed)
             else -> listOf(primaryIcon, Icons.Outlined.Star, Icons.Outlined.AutoAwesome)
@@ -488,7 +489,7 @@ fun FullProductOverviewScreen(
                 }
 
                 Button(
-                    onClick = onCompareClick,
+                    onClick = { showCompareSheet = true },
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
@@ -512,6 +513,17 @@ fun FullProductOverviewScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (showCompareSheet) {
+            CompareProductSheet(
+                baseProduct = product,
+                onSelectProduct = { chosen ->
+                    showCompareSheet = false
+                    onCompareClick(product.name, chosen.name)
+                },
+                onDismiss = { showCompareSheet = false }
+            )
         }
     }
 }
