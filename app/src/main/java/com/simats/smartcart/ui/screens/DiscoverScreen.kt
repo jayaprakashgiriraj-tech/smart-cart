@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.Product
 import com.simats.smartcart.data.ProductCatalog
+import com.simats.smartcart.data.storeComparison
 
 @Composable
 fun DiscoverScreen(
@@ -688,6 +689,42 @@ private fun ShortlistProductCard(
                         color = Color(0xFF5A6478),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Amazon vs Flipkart quick store pill
+                val storeComp = product.storeComparison
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFF3F5FC))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Amazon ${storeComp.amazon.formattedPrice}",
+                            fontSize = 9.sp,
+                            fontWeight = if (storeComp.amazon.isCheapest) FontWeight.Bold else FontWeight.Normal,
+                            color = if (storeComp.amazon.isCheapest) Color(0xFF1A8068) else Color(0xFF5A6478)
+                        )
+                        Text(text = " · ", fontSize = 9.sp, color = Color(0xFF9AA4B8))
+                        Text(
+                            text = "Flipkart ${storeComp.flipkart.formattedPrice}",
+                            fontSize = 9.sp,
+                            fontWeight = if (storeComp.flipkart.isCheapest) FontWeight.Bold else FontWeight.Normal,
+                            color = if (storeComp.flipkart.isCheapest) Color(0xFF1A8068) else Color(0xFF5A6478)
+                        )
+                    }
+                    Text(
+                        text = "Save ${storeComp.savingsFormatted}",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1A8068)
                     )
                 }
             }

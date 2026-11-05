@@ -428,6 +428,11 @@ fun PriceTrackingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // LIVE AMAZON VS FLIPKART PRICE COMPARISON
+            AmazonFlipkartCompareCard(product = product)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Price History Graph Card
             Card(
                 modifier = Modifier.fillMaxWidth(),

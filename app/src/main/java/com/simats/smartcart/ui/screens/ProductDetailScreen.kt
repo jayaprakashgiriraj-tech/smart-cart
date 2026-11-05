@@ -55,8 +55,8 @@ data class MatchProductDetail(
 val matchProductsList = listOf(
     MatchProductDetail(
         name = "JBL Tune 510BT",
-        price = "₹2,799",
-        rating = "4.3",
+        price = "₹2,372",
+        rating = "4.1",
         recIndex = "Recommendation 1 of 3",
         categoryBadge = "BEST FOR ONLINE CLASSES",
         categoryIcon = Icons.Outlined.AutoAwesome,
@@ -119,8 +119,9 @@ fun ProductDetailScreen(
     var showCompareSheet by remember { mutableStateOf(false) }
     val currentProductDetail = remember(productName) {
         val existing = matchProductsList.find { it.name.equals(productName, ignoreCase = true) }
+        val cat = ProductCatalog.findProductByNameOrNull(productName)
         if (existing != null) {
-            existing
+            if (cat != null) existing.copy(price = cat.price, rating = cat.rating) else existing
         } else {
             val cat = ProductCatalog.getProductByName(productName)
             val icon = when (cat.category) {
@@ -466,6 +467,14 @@ fun ProductDetailScreen(
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
+
+                    // LIVE AMAZON VS FLIPKART PRICE COMPARISON
+                    val catalogProduct = remember(product.name) {
+                        ProductCatalog.getProductByName(product.name)
+                    }
+                    AmazonFlipkartCompareCard(product = catalogProduct)
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Feature Boxes
                     Row(

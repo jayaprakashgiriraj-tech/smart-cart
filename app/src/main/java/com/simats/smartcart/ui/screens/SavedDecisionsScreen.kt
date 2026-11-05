@@ -24,7 +24,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.WishlistRepository
+import com.simats.smartcart.data.storeComparison
 
 @Composable
 fun SavedDecisionsScreen(
@@ -443,6 +445,42 @@ private fun WishlistItemCard(
                             text = "Saved AI verdict",
                             fontSize = 10.sp,
                             color = Color(0xFF7A8398)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Store Comparison Quick Pill
+                    val comp = ProductCatalog.getProductByName(name).storeComparison
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFF3F5FC))
+                            .padding(horizontal = 6.dp, vertical = 3.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Amazon ${comp.amazon.formattedPrice}",
+                                fontSize = 9.sp,
+                                fontWeight = if (comp.amazon.isCheapest) FontWeight.Bold else FontWeight.Normal,
+                                color = if (comp.amazon.isCheapest) Color(0xFF1A8068) else Color(0xFF5A6478)
+                            )
+                            Text(text = " · ", fontSize = 9.sp, color = Color(0xFF9AA4B8))
+                            Text(
+                                text = "Flipkart ${comp.flipkart.formattedPrice}",
+                                fontSize = 9.sp,
+                                fontWeight = if (comp.flipkart.isCheapest) FontWeight.Bold else FontWeight.Normal,
+                                color = if (comp.flipkart.isCheapest) Color(0xFF1A8068) else Color(0xFF5A6478)
+                            )
+                        }
+                        Text(
+                            text = "Save ${comp.savingsFormatted}",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A8068)
                         )
                     }
                 }

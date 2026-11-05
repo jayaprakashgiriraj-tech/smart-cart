@@ -308,6 +308,11 @@ fun FullProductOverviewScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // LIVE AMAZON VS FLIPKART PRICE COMPARISON
+            AmazonFlipkartCompareCard(product = product)
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Spec Highlights Row
