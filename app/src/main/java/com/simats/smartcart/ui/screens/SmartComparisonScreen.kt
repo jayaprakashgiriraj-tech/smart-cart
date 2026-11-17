@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import com.simats.smartcart.data.WishlistRepository
+import com.simats.smartcart.data.SavedComparisonRepository
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -220,18 +221,17 @@ fun SmartComparisonScreen(
                     }
                 }
 
-                val isFav1 = WishlistRepository.isWishlisted(product1.name)
+                val isComparisonSaved = SavedComparisonRepository.isSaved(product1.name, product2.name)
                 IconButton(
                     onClick = {
-                        WishlistRepository.toggleWishlist(product1)
-                        WishlistRepository.toggleWishlist(product2)
+                        SavedComparisonRepository.toggleSaveComparison(product1, product2)
                     },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        imageVector = if (isFav1) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        imageVector = if (isComparisonSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                         contentDescription = "Bookmark",
-                        tint = if (isFav1) Color(0xFF5050F0) else Color(0xFF7A8398),
+                        tint = if (isComparisonSaved) Color(0xFF5050F0) else Color(0xFF7A8398),
                         modifier = Modifier.size(20.dp)
                     )
                 }

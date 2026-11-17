@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.UserAccountRepository
+import com.simats.smartcart.data.SavedComparisonRepository
 import java.io.File
 
 @Composable
@@ -339,10 +340,11 @@ fun ProfileScreen(
 
                     HorizontalDivider(color = Color(0xFFF0F2F8), thickness = 1.dp)
 
+                    val compCount = SavedComparisonRepository.items.size
                     ActivityRow(
                         icon = Icons.AutoMirrored.Outlined.CompareArrows,
                         title = "Saved comparisons",
-                        subtitle = "1 comparison · Online classes",
+                        subtitle = if (compCount == 1) "1 comparison · Saved" else "$compCount comparisons · Saved",
                         onClick = onSavedComparisonsClick
                     )
                 }

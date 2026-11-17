@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.ProductCatalog
+import com.simats.smartcart.data.SavedComparisonRepository
 
 @Composable
 fun SmarterChoiceScreen(
@@ -34,10 +36,10 @@ fun SmarterChoiceScreen(
     onSaveComparisonClick: () -> Unit = {}
 ) {
     var selectedBottomTab by remember { mutableIntStateOf(2) } // 2 is Compare tab
-    var isSaved by remember { mutableStateOf(false) }
 
     val product1 = remember(product1Name) { ProductCatalog.getProductByName(product1Name) }
     val product2 = remember(product2Name) { ProductCatalog.getProductByName(product2Name) }
+    val isSaved = SavedComparisonRepository.isSaved(product1.name, product2.name)
     val winner = if (product1.valueScore >= product2.valueScore) product1 else product2
     val loser = if (winner.id == product1.id) product2 else product1
 
@@ -95,15 +97,14 @@ fun SmarterChoiceScreen(
 
                 IconButton(
                     onClick = {
-                        isSaved = !isSaved
-                        onSaveComparisonClick()
+                        SavedComparisonRepository.toggleSaveComparison(product1, product2)
                     },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        imageVector = if (isSaved) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder,
+                        imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                         contentDescription = "Bookmark",
-                        tint = Color(0xFF5050F0),
+                        tint = if (isSaved) Color(0xFF5050F0) else Color(0xFF7A8398),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -303,7 +304,9 @@ fun SmarterChoiceScreen(
 
                 OutlinedButton(
                     onClick = {
-                        isSaved = !isSaved
+                        if (!isSaved) {
+                            SavedComparisonRepository.saveComparison(product1, product2)
+                        }
                         onSaveComparisonClick()
                     },
                     modifier = Modifier

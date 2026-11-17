@@ -26,13 +26,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.WishlistRepository
+import com.simats.smartcart.data.SavedComparisonRepository
+import com.simats.smartcart.data.SavedComparisonItem
 import com.simats.smartcart.data.storeComparison
 
 @Composable
 fun SavedDecisionsScreen(
     onTabSelected: (Int) -> Unit = {},
     onCompareClick: () -> Unit = {},
-    onOpenComparisonClick: () -> Unit = {},
+    onOpenComparisonClick: (String, String) -> Unit = { _, _ -> },
     onPriceDropClick: (String) -> Unit = {},
     onProductClick: (String) -> Unit = {},
     onCompareProductClick: (String) -> Unit = {}
@@ -40,6 +42,7 @@ fun SavedDecisionsScreen(
     var selectedTopTab by remember { mutableIntStateOf(0) } // 0 is Wishlist, 1 is Comparisons
     var selectedBottomTab by remember { mutableIntStateOf(3) } // 3 is Wishlist tab
     val wishlistItems = WishlistRepository.items
+    val comparisonItems = SavedComparisonRepository.items
 
     Scaffold(
         bottomBar = {
@@ -156,7 +159,7 @@ fun SavedDecisionsScreen(
                     ),
                     elevation = null
                 ) {
-                    Text("Comparisons · 1", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("Comparisons · ${comparisonItems.size}", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -248,7 +251,7 @@ fun SavedDecisionsScreen(
                     color = Color(0xFF1E2135)
                 )
                 Text(
-                    text = "1 saved",
+                    text = "${comparisonItems.size} saved",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF5050F0)
@@ -257,71 +260,55 @@ fun SavedDecisionsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Saved Comparison Item
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onOpenComparisonClick() },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFECEFF8))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (comparisonItems.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFECEFF8))
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFF2F4FF)),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.CompareArrows,
-                            contentDescription = "Compare",
-                            tint = Color(0xFF5050F0),
-                            modifier = Modifier.size(20.dp)
+                            contentDescription = null,
+                            tint = Color(0xFF9AA4B8),
+                            modifier = Modifier.size(44.dp)
                         )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "JBL Tune 510BT vs Soundcore H30i",
-                            fontSize = 13.sp,
+                            text = "No saved comparisons yet",
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1E2135)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Online classes · Saved today",
-                            fontSize = 11.sp,
-                            color = Color(0xFF7A8398)
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onOpenComparisonClick() }
-                    ) {
-                        Text(
-                            text = "Open",
+                            text = "Tap the bookmark icon on any comparison to save it here.",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF5050F0)
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Icon(
-                            imageVector = Icons.Outlined.ChevronRight,
-                            contentDescription = "Open",
-                            tint = Color(0xFF5050F0),
-                            modifier = Modifier.size(16.dp)
+                            color = Color(0xFF7A8398),
+                            textAlign = TextAlign.Center
                         )
                     }
+                }
+            } else {
+                comparisonItems.forEachIndexed { index, compItem ->
+                    if (index > 0) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    SavedComparisonItemCard(
+                        item = compItem,
+                        onOpenClick = {
+                            onOpenComparisonClick(compItem.product1.name, compItem.product2.name)
+                        },
+                        onRemoveClick = {
+                            SavedComparisonRepository.removeComparison(compItem.product1.name, compItem.product2.name)
+                        }
+                    )
                 }
             }
 
@@ -550,6 +537,130 @@ private fun WishlistItemCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Remove",
+                        fontSize = 11.sp,
+                        color = Color(0xFF7A8398)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedComparisonItemCard(
+    item: SavedComparisonItem,
+    onOpenClick: () -> Unit,
+    onRemoveClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFECEFF8))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF2F4FF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.CompareArrows,
+                        contentDescription = "Compare",
+                        tint = Color(0xFF5050F0),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "${item.product1.name} vs ${item.product2.name}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E2135),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${item.categoryLabel} · ${item.getFormattedDate()}",
+                        fontSize = 11.sp,
+                        color = Color(0xFF7A8398)
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onOpenClick() }
+                ) {
+                    Text(
+                        text = "Open",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF5050F0)
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Icon(
+                        imageVector = Icons.Outlined.ChevronRight,
+                        contentDescription = "Open",
+                        tint = Color(0xFF5050F0),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = Color(0xFFF0F2F8), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFE6F5F0))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = "✓ Top Pick: ${item.winnerProduct.name}",
+                        color = Color(0xFF1A8068),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onRemoveClick() }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Remove",
+                        tint = Color(0xFF7A8398),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Remove",
                         fontSize = 11.sp,

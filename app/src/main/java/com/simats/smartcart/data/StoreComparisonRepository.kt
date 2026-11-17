@@ -116,26 +116,31 @@ object StoreComparisonRepository {
 
             try {
                 for (baseUrl in AuthNetworkClient.CANDIDATE_URLS) {
-                    try {
-                        val endpoint = "$baseUrl/products/compare_stores.php?product_name=${Uri.encode(product.name)}&product_id=${product.id}"
-                        val url = URL(endpoint)
-                        val conn = url.openConnection() as HttpURLConnection
-                        conn.connectTimeout = 3000
-                        conn.readTimeout = 3000
-                        conn.requestMethod = "GET"
+                    val endpoints = listOf(
+                        "$baseUrl/integrations/compare_prices.php?product_name=${Uri.encode(product.name)}&product_id=${product.id}",
+                        "$baseUrl/products/compare_stores.php?product_name=${Uri.encode(product.name)}&product_id=${product.id}"
+                    )
+                    for (endpoint in endpoints) {
+                        try {
+                            val url = URL(endpoint)
+                            val conn = url.openConnection() as HttpURLConnection
+                            conn.connectTimeout = 3000
+                            conn.readTimeout = 3000
+                            conn.requestMethod = "GET"
 
-                        if (conn.responseCode in 200..299) {
-                            val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                            val json = JSONObject(reader.use { it.readText() })
-                            if (json.optBoolean("success", false) || json.optString("status") == "success") {
-                                val comp = parseJsonComparison(product, json)
-                                cache[product.id] = comp
-                                cache[product.name] = comp
-                                return@withContext comp
+                            if (conn.responseCode in 200..299) {
+                                val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                                val json = JSONObject(reader.use { it.readText() })
+                                if (json.optBoolean("success", false) || json.optString("status") == "success") {
+                                    val comp = parseJsonComparison(product, json)
+                                    cache[product.id] = comp
+                                    cache[product.name] = comp
+                                    return@withContext comp
+                                }
                             }
+                        } catch (_: Exception) {
+                            // try next endpoint or host candidate
                         }
-                    } catch (_: Exception) {
-                        // try next candidate
                     }
                 }
             } catch (_: Exception) {
