@@ -26,6 +26,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.horizontalScroll
+import com.simats.smartcart.ai.AiSearchResultItem
+import com.simats.smartcart.ai.SmartCartAiEngine
 import com.simats.smartcart.data.Product
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.storeComparison
@@ -43,66 +46,20 @@ fun SearchResultsScreen(
     var followUpQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(initialCategory) }
 
-    val matchingProducts: List<Product> = remember(currentQuery, selectedCategory) {
+    // Execute SmartCart Custom On-Device AI Search
+    val aiSearchResponse = remember(currentQuery, selectedCategory, initialMaxBudget) {
         val query = currentQuery.trim()
-        val results = if (query.isNotBlank()) {
-            ProductCatalog.searchProducts(
-                query = query,
-                categoryFilter = if (selectedCategory == "All") null else selectedCategory,
-                maxPriceFilter = if (initialMaxBudget > 0) initialMaxBudget else null
-            )
-        } else {
-            emptyList()
-        }
-        if (results.isNotEmpty()) {
-            results
-        } else {
-            val fallback = if (selectedCategory == "All") {
-                ProductCatalog.products
-            } else {
-                ProductCatalog.getProductsByCategory(selectedCategory)
-            }
-            if (initialMaxBudget > 0) {
-                val budgetFiltered = fallback.filter { it.numericPrice <= initialMaxBudget }
-                if (budgetFiltered.isNotEmpty()) budgetFiltered else fallback
-            } else {
-                fallback
-            }
-        }
+        val queryToRun = if (query.isNotBlank()) query else if (selectedCategory != "All") selectedCategory else "Top Deals"
+        SmartCartAiEngine.search(
+            query = queryToRun,
+            categoryFilter = if (selectedCategory == "All") null else selectedCategory,
+            maxPriceFilter = if (initialMaxBudget > 0) initialMaxBudget else null
+        )
     }
 
-    val aiSummaryText = remember(matchingProducts, currentQuery) {
-        val queryLower = currentQuery.lowercase()
-        when {
-            matchingProducts.isEmpty() -> {
-                "I couldn't find exact matches for \"$currentQuery\". Try searching by brand (e.g., Apple, Samsung, boAt, Dell) or describe your use-case."
-            }
-            queryLower.contains("iphone") || matchingProducts.any { it.name.contains("iPhone", ignoreCase = true) } -> {
-                "Found Apple iPhone 15 with A16 Bionic chip, 48MP camera, and Dynamic Island. Ideal for pro photography, iOS ecosystem, and reliable battery."
-            }
-            queryLower.contains("samsung") -> {
-                "Found top Samsung recommendations including Galaxy S23 flagship and Galaxy M34 battery champion. Excellent displays and versatile cameras."
-            }
-            queryLower.contains("laptop") || queryLower.contains("macbook") -> {
-                "Found top-rated laptops for study, productivity, and gaming. Balanced across battery, display, and processing power."
-            }
-            queryLower.contains("headphone") || queryLower.contains("earbud") || queryLower.contains("audio") || queryLower.contains("speaker") -> {
-                "Found ${matchingProducts.size} audio recommendations fitting your request. Ranked by sound quality, call clarity, and battery life."
-            }
-            queryLower.contains("dress") || queryLower.contains("watch") || queryLower.contains("fashion") -> {
-                "Found ${matchingProducts.size} fashion items fitting your search. Featuring trending designs, premium fabrics, and great value."
-            }
-            queryLower.contains("mobile") || queryLower.contains("phone") -> {
-                "Found ${matchingProducts.size} mobile recommendations. Filtered for performance, display, and camera quality in your budget."
-            }
-            currentQuery.isNotBlank() -> {
-                "SmartCart AI found ${matchingProducts.size} matching items for \"$currentQuery\". Ranked by specifications, user rating, and best value."
-            }
-            else -> {
-                "These ${matchingProducts.size} recommendations match your $selectedCategory preferences. Ranked by value score, reliability, and user feedback."
-            }
-        }
-    }
+    val matchingResults = aiSearchResponse.results
+    val parsedQuery = aiSearchResponse.parsedQuery
+    val aiSummaryText = aiSearchResponse.aiSummary
 
     Scaffold(
         bottomBar = {
@@ -250,6 +207,81 @@ fun SearchResultsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // AI Parsed Intent Chips Row
+            if (parsedQuery.category != null || parsedQuery.maxBudget != null || parsedQuery.detectedBrand != null || parsedQuery.detectedFeatures.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (parsedQuery.detectedBrand != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF2F4FF),
+                            border = BorderStroke(1.dp, Color(0xFFD6DDF8))
+                        ) {
+                            Text(
+                                text = "🏢 ${parsedQuery.detectedBrand}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF5050F0),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    if (parsedQuery.category != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF2F4FF),
+                            border = BorderStroke(1.dp, Color(0xFFD6DDF8))
+                        ) {
+                            Text(
+                                text = "🏷️ ${parsedQuery.category}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF5050F0),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    if (parsedQuery.maxBudget != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFE8F7F2),
+                            border = BorderStroke(1.dp, Color(0xFFC8ECE0))
+                        ) {
+                            Text(
+                                text = "💰 Under ₹${ProductCatalog.formatIndianRupees(parsedQuery.maxBudget)}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A8068),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    parsedQuery.detectedFeatures.forEach { feat ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFFFF8E1),
+                            border = BorderStroke(1.dp, Color(0xFFFFECB3))
+                        ) {
+                            Text(
+                                text = "⚡ ${feat.replaceFirstChar { it.uppercase() }}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFB76E00),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // AI Recommendation Summary Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -271,7 +303,7 @@ fun SearchResultsScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "SmartCart AI",
+                            text = "SmartCart AI Search",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF5050F0)
@@ -308,7 +340,7 @@ fun SearchResultsScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "${matchingProducts.size} ${if (matchingProducts.size == 1) "match" else "matches"}",
+                    text = "${matchingResults.size} ${if (matchingResults.size == 1) "match" else "matches"}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF5050F0)
@@ -318,7 +350,7 @@ fun SearchResultsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Render Product Cards or Empty State
-            if (matchingProducts.isEmpty()) {
+            if (matchingResults.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -369,10 +401,11 @@ fun SearchResultsScreen(
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    matchingProducts.forEach { product ->
+                    matchingResults.forEach { item ->
                         SearchResultProductCard(
-                            product = product,
-                            onClick = { onProductClick(product.name) }
+                            product = item.product,
+                            onClick = { onProductClick(item.product.id) },
+                            resultItem = item
                         )
                     }
                 }
@@ -412,7 +445,8 @@ fun SearchResultsScreen(
 @Composable
 private fun SearchResultProductCard(
     product: Product,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    resultItem: AiSearchResultItem
 ) {
     Card(
         modifier = Modifier

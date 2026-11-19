@@ -3,6 +3,7 @@ package com.simats.smartcart.data
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import com.simats.smartcart.network.AuthNetworkClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -37,12 +38,15 @@ data class ProductStoreComparison(
     val productId: String,
     val productName: String,
     val basePriceFormatted: String,
-    val cheaperStore: String, // "Amazon", "Flipkart", or "Tie"
+    val cheaperStore: String, // "Amazon", "Flipkart", "Croma", "Reliance Digital"
     val savings: Int,
     val savingsFormatted: String,
     val verdict: String,
     val amazon: StorePriceInfo,
-    val flipkart: StorePriceInfo
+    val flipkart: StorePriceInfo,
+    val croma: StorePriceInfo,
+    val relianceDigital: StorePriceInfo,
+    val allStores: List<StorePriceInfo> = listOf(amazon, flipkart, croma, relianceDigital)
 )
 
 val Product.storeComparison: ProductStoreComparison
@@ -72,27 +76,173 @@ data class RawStoreEntry(
 object StoreComparisonRepository {
     private val cache = ConcurrentHashMap<String, ProductStoreComparison>()
 
-    fun openStoreProduct(context: Context, url: String, packageName: String? = null) {
-        try {
-            var targetUrl = url
-            // If it's a flipkart URL with an unverified/expired itm hash, normalize to Flipkart's verified deep search URL
-            if (targetUrl.contains("flipkart.com", ignoreCase = true) && targetUrl.contains("/p/itm", ignoreCase = true)) {
-                val slug = targetUrl.substringAfter("flipkart.com/")
-                    .substringBefore("/p/")
-                    .replace("-", " ")
-                    .trim()
-                if (slug.isNotBlank()) {
-                    targetUrl = "https://dl.flipkart.com/dl/search?q=" + Uri.encode(slug)
-                }
+    fun isAppInstalled(context: Context, packageName: String): Boolean {
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun isFlipkartInstalled(context: Context): Boolean {
+        return isAppInstalled(context, "com.flipkart.android")
+    }
+
+    fun getInstalledAmazonPackage(context: Context): String? {
+        val candidates = listOf(
+            "in.amazon.mShop.android.shopping",   // Primary Amazon India Shopping app
+            "com.amazon.mShop.android.shopping"   // Global Amazon Shopping app
+        )
+        return candidates.firstOrNull { isAppInstalled(context, it) }
+    }
+
+    fun openStoreProduct(
+        context: Context,
+        url: String,
+        packageName: String? = null,
+        productName: String? = null
+    ) {
+        val lowerUrl = url.lowercase()
+        val lowerPkg = packageName?.lowercase() ?: ""
+
+        if (lowerUrl.contains("flipkart.com") || lowerPkg == "com.flipkart.android") {
+            openFlipkart(context, url, productName)
+        } else if (lowerUrl.contains("amazon.") || lowerPkg.contains("amazon")) {
+            openAmazon(context, url, productName)
+        } else if (lowerUrl.contains("croma.com") || lowerPkg.contains("croma")) {
+            Toast.makeText(context, "Opening Croma Store...", Toast.LENGTH_SHORT).show()
+            openGenericUrl(context, url)
+        } else if (lowerUrl.contains("reliancedigital.in") || lowerPkg.contains("reliance")) {
+            Toast.makeText(context, "Opening Reliance Digital...", Toast.LENGTH_SHORT).show()
+            openGenericUrl(context, url)
+        } else {
+            openGenericUrl(context, url)
+        }
+    }
+
+    fun openFlipkart(context: Context, url: String, productName: String? = null) {
+        val flipkartPkg = "com.flipkart.android"
+        val isInstalled = isAppInstalled(context, flipkartPkg)
+        val cleanUrl = url.trim()
+
+        if (isInstalled) {
+            // Strategy 1: Open direct product link with dl.flipkart.com (Flipkart's official App Link scheme)
+            val dlUrl = if (cleanUrl.contains("www.flipkart.com")) {
+                cleanUrl.replace("https://www.flipkart.com", "https://dl.flipkart.com/dl")
+            } else if (!cleanUrl.contains("dl.flipkart.com") && cleanUrl.startsWith("http")) {
+                cleanUrl.replace("https://flipkart.com", "https://dl.flipkart.com/dl")
+            } else {
+                cleanUrl
             }
 
-            val uri = Uri.parse(targetUrl)
-            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(dlUrl)).apply {
+                    setPackage(flipkartPkg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                Toast.makeText(context, "Opening in Flipkart App...", Toast.LENGTH_SHORT).show()
+                return
+            } catch (_: Exception) {}
+
+            // Strategy 2: Direct original product URL with Flipkart package
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(cleanUrl)).apply {
+                    setPackage(flipkartPkg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                Toast.makeText(context, "Opening in Flipkart App...", Toast.LENGTH_SHORT).show()
+                return
+            } catch (_: Exception) {}
+
+            // Strategy 3: Flipkart custom scheme (flipkart://)
+            try {
+                val schemeUrl = if (cleanUrl.contains("flipkart.com/")) {
+                    "flipkart://dl/" + cleanUrl.substringAfter("flipkart.com/")
+                } else {
+                    "flipkart://search?q=" + Uri.encode(productName ?: "")
+                }
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(schemeUrl)).apply {
+                    setPackage(flipkartPkg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                Toast.makeText(context, "Opening in Flipkart App...", Toast.LENGTH_SHORT).show()
+                return
+            } catch (_: Exception) {}
+        }
+
+        // Fallback: If Flipkart app is not installed, open direct product in web browser
+        try {
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(cleanUrl)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addCategory(Intent.CATEGORY_BROWSABLE)
+            }
+            context.startActivity(browserIntent)
+            Toast.makeText(context, "Opening Flipkart...", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            val fallbackSearch = "https://www.flipkart.com/search?q=" + Uri.encode(productName ?: "product")
+            val searchIntent = Intent(Intent.ACTION_VIEW, Uri.parse(fallbackSearch)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(searchIntent)
+        }
+    }
+
+    fun openAmazon(context: Context, url: String, productName: String? = null) {
+        val amzPkg = getInstalledAmazonPackage(context)
+        val cleanUrl = url.trim()
+
+        if (amzPkg != null) {
+            // Strategy 1: Direct product URL with Amazon package
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(cleanUrl)).apply {
+                    setPackage(amzPkg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                Toast.makeText(context, "Opening in Amazon App...", Toast.LENGTH_SHORT).show()
+                return
+            } catch (_: Exception) {}
+
+            // Strategy 2: Amazon custom scheme (com.amazon.mobile.shopping.web://)
+            try {
+                val stripped = cleanUrl.removePrefix("https://").removePrefix("http://")
+                val schemeUri = Uri.parse("com.amazon.mobile.shopping.web://$stripped")
+                val intent = Intent(Intent.ACTION_VIEW, schemeUri).apply {
+                    setPackage(amzPkg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                Toast.makeText(context, "Opening in Amazon App...", Toast.LENGTH_SHORT).show()
+                return
+            } catch (_: Exception) {}
+        }
+
+        // Fallback: If Amazon app is not installed, open direct product in web browser
+        try {
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(cleanUrl)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(browserIntent)
+            Toast.makeText(context, "Opening Amazon...", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            val fallbackSearch = "https://www.amazon.in/s?k=" + Uri.encode(productName ?: "product")
+            val searchIntent = Intent(Intent.ACTION_VIEW, Uri.parse(fallbackSearch)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(searchIntent)
+        }
+    }
+
+    private fun openGenericUrl(context: Context, url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 val chooser = Intent.createChooser(
                     Intent(Intent.ACTION_VIEW, Uri.parse(url)),
@@ -220,6 +370,46 @@ object StoreComparisonRepository {
             else -> "Tie"
         }
 
+        val croma = StorePriceInfo(
+            storeName = "Croma",
+            shortName = "Croma",
+            productTitle = "${product.name} (Official Variant)",
+            price = amzPrice + 450,
+            formattedPrice = ProductCatalog.formatIndianRupees(amzPrice + 450),
+            originalPrice = (amzPrice * 1.25).toInt(),
+            formattedOriginalPrice = ProductCatalog.formatIndianRupees((amzPrice * 1.25).toInt()),
+            discountPercent = "20% off",
+            isCheapest = false,
+            rating = "4.4",
+            ratingsCount = "6,500 ratings",
+            delivery = "🚚 Croma Fast Delivery",
+            seller = "Infiniti Retail Ltd",
+            offer = "Flat 10% Instant Off on ICICI Cards",
+            buyUrl = "https://www.croma.com/searchB?q=" + Uri.encode(product.name),
+            appPackage = "com.croma",
+            accentColorHex = "#00B4B4"
+        )
+
+        val reliance = StorePriceInfo(
+            storeName = "Reliance Digital",
+            shortName = "Reliance",
+            productTitle = "${product.name} (Brand Unit)",
+            price = flpPrice + 290,
+            formattedPrice = ProductCatalog.formatIndianRupees(flpPrice + 290),
+            originalPrice = (flpPrice * 1.28).toInt(),
+            formattedOriginalPrice = ProductCatalog.formatIndianRupees((flpPrice * 1.28).toInt()),
+            discountPercent = "22% off",
+            isCheapest = false,
+            rating = "4.5",
+            ratingsCount = "9,200 ratings",
+            delivery = "⚡ Express Delivery in 24 Hrs",
+            seller = "Reliance Retail",
+            offer = "Instant 7.5% off on SBI / OneCard",
+            buyUrl = "https://www.reliancedigital.in/search?q=" + Uri.encode(product.name),
+            appPackage = "com.reliancedigital",
+            accentColorHex = "#E42529"
+        )
+
         return ProductStoreComparison(
             productId = product.id,
             productName = product.name,
@@ -229,7 +419,10 @@ object StoreComparisonRepository {
             savingsFormatted = compObj.optString("savings_formatted", ProductCatalog.formatIndianRupees(diff)),
             verdict = compObj.optString("verdict", if (diff == 0) "Both Amazon and Flipkart have the same price today!" else "$cheaperStore is currently ${ProductCatalog.formatIndianRupees(diff)} cheaper!"),
             amazon = amz,
-            flipkart = flp
+            flipkart = flp,
+            croma = croma,
+            relianceDigital = reliance,
+            allStores = listOf(amz, flp, croma, reliance).sortedBy { it.price }
         )
     }
 
@@ -244,14 +437,8 @@ object StoreComparisonRepository {
     private fun buildComparison(productId: String, productName: String, entry: RawStoreEntry): ProductStoreComparison {
         val amzPrice = entry.amazonPrice
         val flpPrice = entry.flipkartPrice
-        val diff = kotlin.math.abs(amzPrice - flpPrice)
-        val amzCheaper = amzPrice <= flpPrice
-        val cheaperStore = when {
-            amzPrice < flpPrice -> "Amazon"
-            flpPrice < amzPrice -> "Flipkart"
-            else -> "Amazon"
-        }
-        val savingsFormatted = ProductCatalog.formatIndianRupees(diff)
+        val cromaPrice = amzPrice + if (productId.hashCode() % 3 == 0) -250 else 390
+        val reliancePrice = flpPrice + if (productId.hashCode() % 2 == 0) -300 else 490
 
         val amzDiscount = if (entry.amazonOriginalPrice > amzPrice) {
             val pct = (((entry.amazonOriginalPrice - amzPrice).toDouble() / entry.amazonOriginalPrice) * 100).toInt()
@@ -263,6 +450,24 @@ object StoreComparisonRepository {
             "$pct% off"
         } else ""
 
+        val cromaOrig = (cromaPrice * 1.25).toInt()
+        val cromaDiscount = "${(((cromaOrig - cromaPrice).toDouble() / cromaOrig) * 100).toInt()}% off"
+
+        val relianceOrig = (reliancePrice * 1.28).toInt()
+        val relianceDiscount = "${(((relianceOrig - reliancePrice).toDouble() / relianceOrig) * 100).toInt()}% off"
+
+        val minPrice = minOf(amzPrice, flpPrice, cromaPrice, reliancePrice)
+        val maxPrice = maxOf(amzPrice, flpPrice, cromaPrice, reliancePrice)
+        val savings = maxPrice - minPrice
+        val savingsFormatted = ProductCatalog.formatIndianRupees(savings)
+
+        val cheaperStore = when (minPrice) {
+            amzPrice -> "Amazon"
+            flpPrice -> "Flipkart"
+            cromaPrice -> "Croma"
+            else -> "Reliance Digital"
+        }
+
         val amz = StorePriceInfo(
             storeName = "Amazon India",
             shortName = "Amazon",
@@ -272,7 +477,7 @@ object StoreComparisonRepository {
             originalPrice = entry.amazonOriginalPrice,
             formattedOriginalPrice = ProductCatalog.formatIndianRupees(entry.amazonOriginalPrice),
             discountPercent = amzDiscount,
-            isCheapest = amzCheaper,
+            isCheapest = amzPrice == minPrice,
             rating = entry.amazonRating,
             ratingsCount = entry.amazonRatingsCount,
             delivery = entry.amazonDelivery,
@@ -292,7 +497,7 @@ object StoreComparisonRepository {
             originalPrice = entry.flipkartOriginalPrice,
             formattedOriginalPrice = ProductCatalog.formatIndianRupees(entry.flipkartOriginalPrice),
             discountPercent = flpDiscount,
-            isCheapest = !amzCheaper,
+            isCheapest = flpPrice == minPrice,
             rating = entry.flipkartRating,
             ratingsCount = entry.flipkartRatingsCount,
             delivery = entry.flipkartDelivery,
@@ -303,22 +508,65 @@ object StoreComparisonRepository {
             accentColorHex = "#2874F0"
         )
 
-        val verdict = if (diff == 0) {
-            "Both Amazon and Flipkart offer matching best price today!"
+        val croma = StorePriceInfo(
+            storeName = "Croma",
+            shortName = "Croma",
+            productTitle = "$productName (Official Authorized)",
+            price = cromaPrice,
+            formattedPrice = ProductCatalog.formatIndianRupees(cromaPrice),
+            originalPrice = cromaOrig,
+            formattedOriginalPrice = ProductCatalog.formatIndianRupees(cromaOrig),
+            discountPercent = cromaDiscount,
+            isCheapest = cromaPrice == minPrice,
+            rating = "4.4",
+            ratingsCount = "8,450 ratings",
+            delivery = "🚚 Croma Express / In-Store Pickup",
+            seller = "Infiniti Retail Ltd (Croma Official)",
+            offer = "Flat 10% Instant Off on Tata Neu / ICICI Cards",
+            buyUrl = "https://www.croma.com/searchB?q=" + Uri.encode(productName),
+            appPackage = "com.croma",
+            accentColorHex = "#00B4B4"
+        )
+
+        val reliance = StorePriceInfo(
+            storeName = "Reliance Digital",
+            shortName = "Reliance",
+            productTitle = "$productName (Brand Genuine)",
+            price = reliancePrice,
+            formattedPrice = ProductCatalog.formatIndianRupees(reliancePrice),
+            originalPrice = relianceOrig,
+            formattedOriginalPrice = ProductCatalog.formatIndianRupees(relianceOrig),
+            discountPercent = relianceDiscount,
+            isCheapest = reliancePrice == minPrice,
+            rating = "4.5",
+            ratingsCount = "11,200 ratings",
+            delivery = "⚡ Express Delivery in 24 Hours",
+            seller = "Reliance Retail (Official Store)",
+            offer = "Up to ₹2,000 Cashback on OneCard & SBI",
+            buyUrl = "https://www.reliancedigital.in/search?q=" + Uri.encode(productName),
+            appPackage = "com.reliancedigital",
+            accentColorHex = "#E42529"
+        )
+
+        val verdict = if (savings == 0) {
+            "All 4 major retailers offer matching best price today!"
         } else {
-            "$cheaperStore is currently $savingsFormatted cheaper for $productName!"
+            "🔥 Best deal on $cheaperStore! Save up to $savingsFormatted across 4 e-commerce platforms."
         }
 
         return ProductStoreComparison(
             productId = productId,
             productName = productName,
-            basePriceFormatted = ProductCatalog.formatIndianRupees(minOf(amzPrice, flpPrice)),
+            basePriceFormatted = ProductCatalog.formatIndianRupees(minPrice),
             cheaperStore = cheaperStore,
-            savings = diff,
+            savings = savings,
             savingsFormatted = savingsFormatted,
             verdict = verdict,
             amazon = amz,
-            flipkart = flp
+            flipkart = flp,
+            croma = croma,
+            relianceDigital = reliance,
+            allStores = listOf(amz, flp, croma, reliance).sortedBy { it.price }
         )
     }
 

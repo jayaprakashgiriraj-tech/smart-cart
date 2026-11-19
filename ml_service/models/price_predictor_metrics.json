@@ -1,0 +1,24 @@
+{
+  "model_name": "Price Predictor",
+  "algorithm": "Random Forest Regressor",
+  "evaluation": {
+    "mae_inr": 194.12,
+    "rmse_inr": 433.94,
+    "mape_percent": 0.7,
+    "r2_score": 0.9997
+  },
+  "feature_importances": {
+    "lowest_price_30d": 0.5998,
+    "lag_price_1d": 0.1911,
+    "rolling_mean_30d": 0.1128,
+    "rolling_mean_7d": 0.0783,
+    "lag_price_7d": 0.0125,
+    "highest_price_30d": 0.004,
+    "discount_rate": 0.0015,
+    "day_of_week": 0.0,
+    "day_of_month": 0.0,
+    "month": 0.0,
+    "is_weekend": 0.0
+  },
+  "disclaimer": "DISCLAIMER: Predicted prices are algorithmic statistical estimates derived from historical pricing trends, moving averages, and seasonal patterns. Actual marketplace prices on Amazon and Flipkart fluctuate continuously based on merchant inventory, real-time demand, and flash sales. These predictions are provided for analytical comparison only and do not represent a guaranteed or committed purchase price."
+}

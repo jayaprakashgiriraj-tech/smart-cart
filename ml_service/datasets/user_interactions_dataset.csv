@@ -1,0 +1,213 @@
+user_id,product_id,product_name,category,interaction_type,weight,timestamp
+9,aug_mob_101,Infinix Foldable Series X 21,Mobiles,wishlist,4.0,2026-11-17 23:47:00
+9,aug_hom_99,Panasonic Mixer Grinder Elite 90,Home Appliances,view,1.0,2026-11-17 18:27:00
+10,aug_aud_35,Sennheiser Neckband Lite 88,Audio,view,1.0,2026-11-17 17:06:00
+7,aug_aud_17,Fire-Boltt TWS Earbuds Max 20,Audio,wishlist,4.0,2026-11-17 16:02:00
+4,lap_4,Dell Inspiron 15 3520,Laptops,view,1.0,2026-11-17 13:26:00
+11,aug_mob_55,Realme Gaming Classic 99,Mobiles,view,1.0,2026-11-17 10:44:00
+7,aug_aud_11,Audio-Technica Party Speaker Lite 84,Audio,view,1.0,2026-11-17 08:59:00
+11,aug_mob_39,iQOO Gaming Series X 81,Mobiles,view,1.0,2026-11-17 08:45:00
+1,aug_lap_3,Xiaomi 2-in-1 Touch Series X 53,Laptops,wishlist,4.0,2026-11-17 07:46:00
+11,aug_mob_22,Realme Camera Plus 83,Mobiles,view,1.0,2026-11-17 01:46:00
+7,aug_aud_116,Skullcandy Over-Ear ANC Lite 35,Audio,view,1.0,2026-11-16 23:10:00
+7,aug_aud_115,Crossbeats TWS Earbuds Max 66,Audio,view,1.0,2026-11-16 21:10:00
+10,aug_lap_33,Microsoft Surface Gaming Max 11,Laptops,buy_click,5.0,2026-11-16 19:08:00
+10,aug_mob_94,Vivo Camera Pro 96,Mobiles,wishlist,4.0,2026-11-16 11:57:00
+4,mob_4,OnePlus 12R 5G,Mobiles,wishlist,4.0,2026-11-16 11:46:00
+4,lap_2,ASUS ROG Zephyrus G14,Laptops,buy_click,5.0,2026-11-16 11:42:00
+1,mob_4,OnePlus 12R 5G,Mobiles,compare,2.5,2026-11-16 05:26:00
+11,aug_mob_80,iQOO Gaming Elite 80,Mobiles,view,1.0,2026-11-15 22:17:00
+1,aug_lap_16,Xiaomi Ultrabook Pro 86,Laptops,compare,2.5,2026-11-15 21:44:00
+7,aud_7,boAt Stone 650,Audio,wishlist,4.0,2026-11-15 12:22:00
+9,aug_mob_101,Infinix Foldable Series X 21,Mobiles,view,1.0,2026-11-15 11:56:00
+4,aug_fas_25,Nike Chronograph Elite 27,Fashion,view,1.0,2026-11-15 11:45:00
+7,aug_aud_11,Audio-Technica Party Speaker Lite 84,Audio,view,1.0,2026-11-15 08:17:00
+1,aug_lap_57,MSI Budget Student Elite 95,Laptops,view,1.0,2026-11-15 01:02:00
+7,aug_aud_4,Audio-Technica Neckband Neo 54,Audio,wishlist,4.0,2026-11-14 22:40:00
+7,aug_aud_113,Fire-Boltt Neckband Plus 32,Audio,view,1.0,2026-11-14 21:22:00
+4,aug_lap_16,Xiaomi Ultrabook Pro 86,Laptops,buy_click,5.0,2026-11-14 20:57:00
+4,aug_lap_45,MSI Ultrabook Lite 54,Laptops,view,1.0,2026-11-14 13:55:00
+10,aug_lap_57,MSI Budget Student Elite 95,Laptops,compare,2.5,2026-11-14 12:27:00
+1,aug_lap_102,Acer 2-in-1 Touch Lite 63,Laptops,view,1.0,2026-11-14 10:35:00
+10,app_5,Sony Bravia 55-inch 4K Google TV,Home Appliances,view,1.0,2026-11-14 09:22:00
+9,aug_mob_13,Realme Gaming Elite 77,Mobiles,compare,2.5,2026-11-14 07:41:00
+11,aug_mob_69,Infinix Budget 5G Plus 40,Mobiles,compare,2.5,2026-11-14 07:02:00
+7,aug_aud_50,Crossbeats TWS Earbuds Neo 61,Audio,view,1.0,2026-11-14 04:06:00
+10,lap_2,ASUS ROG Zephyrus G14,Laptops,view,1.0,2026-11-14 01:36:00
+1,aug_hom_99,Panasonic Mixer Grinder Elite 90,Home Appliances,compare,2.5,2026-11-13 22:42:00
+4,aug_mob_54,iQOO Foldable Classic 28,Mobiles,compare,2.5,2026-11-13 21:59:00
+4,aug_hom_5,Bosch Microwave Oven Max 80,Home Appliances,view,1.0,2026-11-13 19:21:00
+7,aug_aud_17,Fire-Boltt TWS Earbuds Max 20,Audio,view,1.0,2026-11-13 17:26:00
+9,aug_mob_37,Realme Foldable Neo 36,Mobiles,view,1.0,2026-11-13 16:51:00
+11,aug_fas_100,Fastrack Digital Sports Watch Elite 25,Fashion,wishlist,4.0,2026-11-13 14:30:00
+9,mob_2,Samsung Galaxy S23 5G,Mobiles,compare,2.5,2026-11-13 09:06:00
+4,aug_lap_16,Xiaomi Ultrabook Pro 86,Laptops,buy_click,5.0,2026-11-13 05:51:00
+1,aug_lap_92,Microsoft Surface Gaming Lite 66,Laptops,compare,2.5,2026-11-13 04:28:00
+11,aug_aud_51,Skullcandy Neckband Plus 88,Audio,buy_click,5.0,2026-11-13 01:18:00
+4,aug_lap_57,MSI Budget Student Elite 95,Laptops,compare,2.5,2026-11-12 23:13:00
+4,aug_lap_7,Microsoft Surface Ultrabook Neo 30,Laptops,view,1.0,2026-11-12 21:17:00
+1,lap_3,Lenovo IdeaPad Slim 3,Laptops,buy_click,5.0,2026-11-12 20:13:00
+9,aug_mob_89,Motorola Gaming Max 30,Mobiles,view,1.0,2026-11-12 17:24:00
+4,aug_mob_32,Poco Gaming Neo 43,Mobiles,view,1.0,2026-11-12 06:58:00
+1,aug_lap_7,Microsoft Surface Ultrabook Neo 30,Laptops,compare,2.5,2026-11-12 00:42:00
+9,aug_mob_32,Poco Gaming Neo 43,Mobiles,wishlist,4.0,2026-11-11 17:59:00
+7,aug_fas_105,Puma Formal Wear Series X 68,Fashion,compare,2.5,2026-11-11 17:44:00
+10,aug_fas_56,Peter England Formal Wear Max 64,Fashion,wishlist,4.0,2026-11-11 16:09:00
+7,aug_mob_40,Realme Budget 5G Series X 26,Mobiles,view,1.0,2026-11-11 14:51:00
+1,aug_lap_9,Xiaomi Gaming Classic 97,Laptops,view,1.0,2026-11-11 13:20:00
+7,aug_mob_90,Vivo Flagship Killer Lite 99,Mobiles,view,1.0,2026-11-11 10:30:00
+7,aug_hom_48,Whirlpool Mixer Grinder Series X 10,Home Appliances,view,1.0,2026-11-11 01:58:00
+1,aug_aud_76,Fire-Boltt Neckband Neo 13,Audio,view,1.0,2026-11-10 17:42:00
+4,lap_3,Lenovo IdeaPad Slim 3,Laptops,view,1.0,2026-11-10 12:38:00
+9,aug_mob_62,Vivo Flagship Killer Series X 59,Mobiles,view,1.0,2026-11-10 10:44:00
+7,app_4,Dyson V8 Cordless Vacuum Cleaner,Home Appliances,view,1.0,2026-11-10 10:08:00
+9,aug_mob_90,Vivo Flagship Killer Lite 99,Mobiles,buy_click,5.0,2026-11-10 07:40:00
+9,aug_hom_96,Panasonic Mixer Grinder Neo 95,Home Appliances,view,1.0,2026-11-10 01:12:00
+11,aug_aud_106,Audio-Technica Neckband Pro 50,Audio,compare,2.5,2026-11-09 22:00:00
+11,aug_mob_97,Motorola Camera Pro 68,Mobiles,wishlist,4.0,2026-11-09 21:27:00
+11,aug_mob_55,Realme Gaming Classic 99,Mobiles,compare,2.5,2026-11-09 08:41:00
+11,aug_mob_114,Poco Flagship Killer Lite 68,Mobiles,buy_click,5.0,2026-11-09 06:12:00
+9,lap_5,HP Pavilion Plus 14,Laptops,view,1.0,2026-11-09 06:09:00
+7,aug_aud_106,Audio-Technica Neckband Pro 50,Audio,view,1.0,2026-11-09 02:20:00
+11,mob_1,Nothing Phone (2a) 5G,Mobiles,view,1.0,2026-11-08 13:56:00
+1,lap_3,Lenovo IdeaPad Slim 3,Laptops,view,1.0,2026-11-08 12:43:00
+7,aug_fas_29,Nike Casual Wear Pro 84,Fashion,view,1.0,2026-11-08 11:13:00
+10,aug_lap_92,Microsoft Surface Gaming Lite 66,Laptops,view,1.0,2026-11-08 02:56:00
+11,aug_hom_81,Bosch Mixer Grinder Elite 44,Home Appliances,compare,2.5,2026-11-07 20:18:00
+4,aug_lap_57,MSI Budget Student Elite 95,Laptops,view,1.0,2026-11-07 17:48:00
+1,aug_lap_7,Microsoft Surface Ultrabook Neo 30,Laptops,compare,2.5,2026-11-07 15:11:00
+4,aug_lap_83,Honor Business Classic 56,Laptops,buy_click,5.0,2026-11-07 09:29:00
+10,aug_lap_9,Xiaomi Gaming Classic 97,Laptops,view,1.0,2026-11-07 07:59:00
+7,aug_aud_116,Skullcandy Over-Ear ANC Lite 35,Audio,buy_click,5.0,2026-11-07 07:58:00
+7,aug_aud_4,Audio-Technica Neckband Neo 54,Audio,compare,2.5,2026-11-07 02:12:00
+10,aug_lap_16,Xiaomi Ultrabook Pro 86,Laptops,wishlist,4.0,2026-11-06 22:29:00
+7,aug_aud_116,Skullcandy Over-Ear ANC Lite 35,Audio,view,1.0,2026-11-06 10:15:00
+11,aug_mob_89,Motorola Gaming Max 30,Mobiles,compare,2.5,2026-11-06 09:03:00
+1,lap_4,Dell Inspiron 15 3520,Laptops,view,1.0,2026-11-06 07:45:00
+7,aug_aud_38,Skullcandy Party Speaker Lite 15,Audio,view,1.0,2026-11-05 22:36:00
+7,aud_7,boAt Stone 650,Audio,compare,2.5,2026-11-05 15:28:00
+7,aud_7,boAt Stone 650,Audio,view,1.0,2026-11-05 14:03:00
+11,aug_mob_111,Poco Budget 5G Max 91,Mobiles,compare,2.5,2026-11-05 12:59:00
+4,lap_5,HP Pavilion Plus 14,Laptops,view,1.0,2026-11-05 04:43:00
+10,aug_lap_57,MSI Budget Student Elite 95,Laptops,view,1.0,2026-11-05 01:20:00
+9,aug_mob_32,Poco Gaming Neo 43,Mobiles,view,1.0,2026-11-05 01:09:00
+11,aug_mob_1,Realme Camera Max 85,Mobiles,view,1.0,2026-11-04 23:47:00
+9,aug_lap_3,Xiaomi 2-in-1 Touch Series X 53,Laptops,view,1.0,2026-11-04 21:36:00
+7,aug_aud_4,Audio-Technica Neckband Neo 54,Audio,compare,2.5,2026-11-04 18:40:00
+7,aug_aud_38,Skullcandy Party Speaker Lite 15,Audio,compare,2.5,2026-11-04 09:34:00
+1,aug_lap_33,Microsoft Surface Gaming Max 11,Laptops,view,1.0,2026-11-04 05:54:00
+11,mob_4,OnePlus 12R 5G,Mobiles,wishlist,4.0,2026-11-04 00:55:00
+11,mob_1,Nothing Phone (2a) 5G,Mobiles,view,1.0,2026-11-04 00:43:00
+10,aug_lap_83,Honor Business Classic 56,Laptops,view,1.0,2026-11-03 20:29:00
+1,aug_lap_83,Honor Business Classic 56,Laptops,wishlist,4.0,2026-11-03 19:39:00
+1,aug_lap_3,Xiaomi 2-in-1 Touch Series X 53,Laptops,view,1.0,2026-11-03 19:01:00
+4,aug_mob_37,Realme Foldable Neo 36,Mobiles,view,1.0,2026-11-03 12:41:00
+7,aug_aud_15,Sennheiser Over-Ear ANC Lite 74,Audio,view,1.0,2026-11-03 09:17:00
+9,aug_aud_71,Sennheiser Soundbar Series X 35,Audio,view,1.0,2026-11-03 06:01:00
+4,lap_4,Dell Inspiron 15 3520,Laptops,view,1.0,2026-11-02 21:31:00
+11,aug_mob_112,Vivo Gaming Lite 55,Mobiles,compare,2.5,2026-11-02 21:27:00
+7,aug_aud_106,Audio-Technica Neckband Pro 50,Audio,view,1.0,2026-11-02 18:38:00
+1,aug_lap_84,Microsoft Surface Ultrabook Plus 91,Laptops,buy_click,5.0,2026-11-02 16:53:00
+1,lap_1,Apple MacBook Air M2,Laptops,wishlist,4.0,2026-11-02 15:49:00
+1,aug_lap_16,Xiaomi Ultrabook Pro 86,Laptops,view,1.0,2026-11-02 13:34:00
+4,aug_lap_3,Xiaomi 2-in-1 Touch Series X 53,Laptops,view,1.0,2026-11-02 13:20:00
+7,aug_aud_10,Sennheiser Neckband Classic 82,Audio,wishlist,4.0,2026-11-02 10:37:00
+10,aug_fas_59,Casio Formal Wear Lite 76,Fashion,compare,2.5,2026-11-02 07:26:00
+10,aug_fas_28,Fastrack Digital Sports Watch Elite 46,Fashion,view,1.0,2026-11-02 05:51:00
+7,aug_aud_95,Skullcandy TWS Earbuds Lite 33,Audio,view,1.0,2026-11-01 23:44:00
+10,aug_aud_95,Skullcandy TWS Earbuds Lite 33,Audio,view,1.0,2026-11-01 21:04:00
+7,aug_aud_61,Noise Soundbar Plus 37,Audio,view,1.0,2026-11-01 21:00:00
+11,aug_mob_40,Realme Budget 5G Series X 26,Mobiles,view,1.0,2026-11-01 13:51:00
+10,aug_mob_32,Poco Gaming Neo 43,Mobiles,view,1.0,2026-11-01 12:07:00
+9,aug_mob_114,Poco Flagship Killer Lite 68,Mobiles,view,1.0,2026-11-01 03:44:00
+7,fsh_2,Fossil Gen 6 Smartwatch,Fashion,view,1.0,2026-11-01 02:55:00
+10,lap_2,ASUS ROG Zephyrus G14,Laptops,view,1.0,2026-11-01 02:32:00
+7,aug_aud_61,Noise Soundbar Plus 37,Audio,view,1.0,2026-10-31 14:27:00
+10,aug_lap_45,MSI Ultrabook Lite 54,Laptops,view,1.0,2026-10-31 11:43:00
+9,aug_mob_55,Realme Gaming Classic 99,Mobiles,compare,2.5,2026-10-31 09:56:00
+11,aug_hom_96,Panasonic Mixer Grinder Neo 95,Home Appliances,buy_click,5.0,2026-10-31 04:26:00
+7,aug_aud_6,Crossbeats Soundbar Pro 94,Audio,view,1.0,2026-10-30 22:45:00
+10,aug_lap_7,Microsoft Surface Ultrabook Neo 30,Laptops,view,1.0,2026-10-30 22:07:00
+11,aug_mob_41,iQOO Camera Max 55,Mobiles,view,1.0,2026-10-30 18:02:00
+7,mob_2,Samsung Galaxy S23 5G,Mobiles,view,1.0,2026-10-30 11:04:00
+1,lap_1,Apple MacBook Air M2,Laptops,view,1.0,2026-10-30 10:05:00
+1,lap_4,Dell Inspiron 15 3520,Laptops,view,1.0,2026-10-30 06:55:00
+9,aud_2,Soundcore by Anker H30i,Audio,wishlist,4.0,2026-10-30 05:18:00
+11,aug_mob_55,Realme Gaming Classic 99,Mobiles,view,1.0,2026-10-29 19:51:00
+4,aug_aud_11,Audio-Technica Party Speaker Lite 84,Audio,wishlist,4.0,2026-10-29 13:56:00
+11,aug_mob_111,Poco Budget 5G Max 91,Mobiles,compare,2.5,2026-10-29 06:21:00
+7,aug_aud_76,Fire-Boltt Neckband Neo 13,Audio,view,1.0,2026-10-29 06:10:00
+7,aug_aud_10,Sennheiser Neckband Classic 82,Audio,wishlist,4.0,2026-10-29 03:13:00
+10,aug_lap_44,Acer 2-in-1 Touch Neo 49,Laptops,compare,2.5,2026-10-28 20:36:00
+4,aug_lap_92,Microsoft Surface Gaming Lite 66,Laptops,view,1.0,2026-10-28 16:21:00
+4,fsh_3,Allen Solly Slim Fit Formal Shirt,Fashion,view,1.0,2026-10-28 09:06:00
+10,aug_lap_45,MSI Ultrabook Lite 54,Laptops,view,1.0,2026-10-28 06:52:00
+9,aug_mob_112,Vivo Gaming Lite 55,Mobiles,wishlist,4.0,2026-10-28 06:10:00
+4,aug_lap_84,Microsoft Surface Ultrabook Plus 91,Laptops,view,1.0,2026-10-28 04:29:00
+11,aug_fas_85,Fastrack Analog Watch Plus 16,Fashion,view,1.0,2026-10-27 22:59:00
+11,aug_mob_32,Poco Gaming Neo 43,Mobiles,view,1.0,2026-10-27 14:57:00
+9,aug_mob_40,Realme Budget 5G Series X 26,Mobiles,compare,2.5,2026-10-27 14:42:00
+11,aug_mob_22,Realme Camera Plus 83,Mobiles,compare,2.5,2026-10-27 10:51:00
+4,aug_lap_7,Microsoft Surface Ultrabook Neo 30,Laptops,buy_click,5.0,2026-10-27 08:43:00
+4,lap_4,Dell Inspiron 15 3520,Laptops,view,1.0,2026-10-27 06:57:00
+1,lap_2,ASUS ROG Zephyrus G14,Laptops,compare,2.5,2026-10-26 21:56:00
+9,aud_2,Soundcore by Anker H30i,Audio,view,1.0,2026-10-26 18:29:00
+11,aug_mob_62,Vivo Flagship Killer Series X 59,Mobiles,view,1.0,2026-10-26 01:29:00
+11,aug_mob_94,Vivo Camera Pro 96,Mobiles,compare,2.5,2026-10-25 16:22:00
+9,fsh_3,Allen Solly Slim Fit Formal Shirt,Fashion,compare,2.5,2026-10-25 05:54:00
+4,aug_lap_102,Acer 2-in-1 Touch Lite 63,Laptops,view,1.0,2026-10-25 00:46:00
+11,aug_mob_21,Poco Foldable Pro 39,Mobiles,buy_click,5.0,2026-10-24 15:45:00
+10,aug_lap_87,Xiaomi Business Classic 76,Laptops,view,1.0,2026-10-24 07:05:00
+4,lap_4,Dell Inspiron 15 3520,Laptops,compare,2.5,2026-10-24 05:33:00
+10,aug_aud_61,Noise Soundbar Plus 37,Audio,view,1.0,2026-10-24 03:23:00
+11,aug_mob_69,Infinix Budget 5G Plus 40,Mobiles,wishlist,4.0,2026-10-24 03:10:00
+7,aug_aud_47,Sennheiser TWS Earbuds Series X 87,Audio,view,1.0,2026-10-23 18:14:00
+10,app_1,LG 7 Kg 5 Star Front Load Washer,Home Appliances,view,1.0,2026-10-23 16:33:00
+10,aug_aud_14,Skullcandy TWS Earbuds Lite 92,Audio,view,1.0,2026-10-23 16:11:00
+10,aug_lap_44,Acer 2-in-1 Touch Neo 49,Laptops,view,1.0,2026-10-23 10:07:00
+4,aug_lap_102,Acer 2-in-1 Touch Lite 63,Laptops,view,1.0,2026-10-23 07:31:00
+7,aug_hom_5,Bosch Microwave Oven Max 80,Home Appliances,compare,2.5,2026-10-23 02:13:00
+7,aug_fas_77,Raymond Digital Sports Watch Neo 45,Fashion,compare,2.5,2026-10-23 01:24:00
+1,lap_1,Apple MacBook Air M2,Laptops,view,1.0,2026-10-22 23:25:00
+1,aug_lap_84,Microsoft Surface Ultrabook Plus 91,Laptops,buy_click,5.0,2026-10-22 23:12:00
+1,aug_hom_63,Bajaj Microwave Oven Neo 48,Home Appliances,view,1.0,2026-10-22 20:43:00
+4,lap_1,Apple MacBook Air M2,Laptops,view,1.0,2026-10-22 19:17:00
+7,aug_aud_35,Sennheiser Neckband Lite 88,Audio,compare,2.5,2026-10-22 10:06:00
+7,aug_aud_76,Fire-Boltt Neckband Neo 13,Audio,compare,2.5,2026-10-22 06:32:00
+7,aug_aud_6,Crossbeats Soundbar Pro 94,Audio,buy_click,5.0,2026-10-22 05:07:00
+7,aug_hom_108,Bosch Microwave Oven Pro 28,Home Appliances,compare,2.5,2026-10-21 23:02:00
+11,aug_mob_13,Realme Gaming Elite 77,Mobiles,compare,2.5,2026-10-21 22:16:00
+1,aug_lap_83,Honor Business Classic 56,Laptops,wishlist,4.0,2026-10-21 13:21:00
+7,aud_3,Sony WH-1000XM4,Audio,compare,2.5,2026-10-21 09:05:00
+7,aug_aud_35,Sennheiser Neckband Lite 88,Audio,view,1.0,2026-10-21 06:33:00
+4,lap_4,Dell Inspiron 15 3520,Laptops,view,1.0,2026-10-21 02:05:00
+10,aug_lap_87,Xiaomi Business Classic 76,Laptops,view,1.0,2026-10-21 00:53:00
+1,aug_lap_45,MSI Ultrabook Lite 54,Laptops,buy_click,5.0,2026-10-20 23:29:00
+11,aug_mob_90,Vivo Flagship Killer Lite 99,Mobiles,view,1.0,2026-10-20 21:07:00
+10,aug_lap_16,Xiaomi Ultrabook Pro 86,Laptops,wishlist,4.0,2026-10-20 20:31:00
+11,aug_mob_21,Poco Foldable Pro 39,Mobiles,wishlist,4.0,2026-10-20 18:20:00
+1,aug_lap_9,Xiaomi Gaming Classic 97,Laptops,compare,2.5,2026-10-20 17:57:00
+7,aug_aud_51,Skullcandy Neckband Plus 88,Audio,buy_click,5.0,2026-10-20 14:24:00
+7,aug_mob_21,Poco Foldable Pro 39,Mobiles,view,1.0,2026-10-20 12:11:00
+11,app_5,Sony Bravia 55-inch 4K Google TV,Home Appliances,view,1.0,2026-10-20 10:25:00
+7,aud_4,Sony WH-CH520,Audio,compare,2.5,2026-10-20 08:16:00
+9,aug_aud_116,Skullcandy Over-Ear ANC Lite 35,Audio,compare,2.5,2026-10-19 22:29:00
+10,aug_fas_59,Casio Formal Wear Lite 76,Fashion,view,1.0,2026-10-19 21:58:00
+4,aug_lap_45,MSI Ultrabook Lite 54,Laptops,view,1.0,2026-10-19 19:23:00
+7,lap_2,ASUS ROG Zephyrus G14,Laptops,view,1.0,2026-10-19 13:10:00
+7,aug_aud_6,Crossbeats Soundbar Pro 94,Audio,buy_click,5.0,2026-10-19 06:50:00
+10,lap_3,Lenovo IdeaPad Slim 3,Laptops,compare,2.5,2026-10-19 03:37:00
+9,lap_3,Lenovo IdeaPad Slim 3,Laptops,view,1.0,2026-10-19 00:43:00
+7,aud_5,boAt Rockerz 450,Audio,wishlist,4.0,2026-10-18 21:25:00
+4,aug_fas_59,Casio Formal Wear Lite 76,Fashion,wishlist,4.0,2026-10-18 21:17:00
+9,aug_mob_72,Poco Gaming Pro 54,Mobiles,view,1.0,2026-10-18 18:19:00
+11,aug_mob_69,Infinix Budget 5G Plus 40,Mobiles,view,1.0,2026-10-18 17:06:00
+7,aug_lap_16,Xiaomi Ultrabook Pro 86,Laptops,wishlist,4.0,2026-10-18 15:07:00
+7,aug_aud_50,Crossbeats TWS Earbuds Neo 61,Audio,view,1.0,2026-10-18 06:15:00
+9,aug_mob_111,Poco Budget 5G Max 91,Mobiles,view,1.0,2026-10-18 01:07:00
+10,mob_1,Nothing Phone (2a) 5G,Mobiles,wishlist,4.0,2026-11-18 09:53:34
+10,mob_1,Nothing Phone (2a) 5G,Mobiles,view,1.0,2026-11-18 12:27:06
+10,mob_1,Nothing Phone (2a) 5G,Mobiles,view,1.0,2026-11-18 12:28:29
+10,mob_1,Nothing Phone (2a) 5G,Mobiles,view,1.0,2026-11-18 12:29:04
+10,mob_1,Nothing Phone (2a) 5G,Mobiles,view,1.0,2026-11-18 12:29:27
+10,mob_1,Nothing Phone (2a) 5G,Mobiles,view,1.0,2026-11-18 12:30:18

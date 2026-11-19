@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.CompareArrows
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -27,8 +28,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.simats.smartcart.ai.SmartCartAiEngine
 import com.simats.smartcart.data.PriceTrackingRepository
 import com.simats.smartcart.data.ProductCatalog
+import com.simats.smartcart.data.StoreComparisonRepository
 import com.simats.smartcart.data.WishlistRepository
 import com.simats.smartcart.data.priceHistory
 
@@ -47,7 +51,11 @@ fun FullProductOverviewScreen(
     val product = remember(productName) {
         ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
     }
+    val aiAnalysis = remember(product) {
+        SmartCartAiEngine.analyzeProduct(product)
+    }
     val isWishlisted = WishlistRepository.isWishlisted(product.name)
+    val context = LocalContext.current
 
     var history by remember(product) {
         mutableStateOf(PriceTrackingRepository.getCachedOrLocal(product))
@@ -369,14 +377,14 @@ fun FullProductOverviewScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Check,
+                                    imageVector = Icons.Outlined.AutoAwesome,
                                     contentDescription = null,
                                     tint = Color(0xFF1A8068),
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "BUY",
+                                    text = aiAnalysis.verdict,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color(0xFF1A8068)
@@ -386,7 +394,7 @@ fun FullProductOverviewScreen(
 
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = "${product.valueScore}",
+                                text = "${aiAnalysis.overallScore}",
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF1A8068)
@@ -404,7 +412,7 @@ fun FullProductOverviewScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = product.recommendationSummary,
+                        text = aiAnalysis.summary,
                         fontSize = 12.sp,
                         color = Color(0xFF1A8068),
                         lineHeight = 18.sp,
@@ -420,9 +428,9 @@ fun FullProductOverviewScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val budgetScore = "${((product.valueScore + 0.3).coerceIn(8.0, 9.8)).let { "%.1f".format(it) }}/10"
-                val featureScore = "${((product.matchPercentage / 10.0).coerceIn(8.2, 9.9)).let { "%.1f".format(it) }}/10"
-                val valueScore = "${product.valueScore}/10"
+                val budgetScore = "${aiAnalysis.budgetScore}/10"
+                val featureScore = "${aiAnalysis.performanceScore}/10"
+                val valueScore = "${aiAnalysis.valueForMoneyScore}/10"
                 SubScoreCard(
                     score = budgetScore,
                     label = "Budget Match",
@@ -430,7 +438,7 @@ fun FullProductOverviewScreen(
                 )
                 SubScoreCard(
                     score = featureScore,
-                    label = "Feature Match",
+                    label = "Performance Match",
                     modifier = Modifier.weight(1f)
                 )
                 SubScoreCard(
@@ -615,6 +623,246 @@ fun FullProductOverviewScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // AI HEAD-TO-HEAD COMPARISON & BEST PICK FOR YOU (BUYHATKE STYLE)
+            val topRival = remember(product) {
+                ProductCatalog.getComparableProducts(product).firstOrNull()
+                    ?: ProductCatalog.getSimilarProducts(product).firstOrNull()
+            }
+
+            if (topRival != null) {
+                val quickAiComparison = remember(product, topRival) {
+                    SmartCartAiEngine.compare(product, topRival)
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFDCE2F8))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        // Title Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFEEF0FF)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Outlined.CompareArrows,
+                                        contentDescription = null,
+                                        tint = Color(0xFF5050F0),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Product Comparison & AI Pick",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E2135)
+                                    )
+                                    Text(
+                                        text = "Which product is best for your money?",
+                                        fontSize = 10.5.sp,
+                                        color = Color(0xFF7A8398)
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFE8F7F2),
+                                border = BorderStroke(1.dp, Color(0xFFC8ECE0))
+                            ) {
+                                Text(
+                                    text = "AI VERDICT",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1A8068),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // Head to Head Products Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Current Product
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (quickAiComparison.overallWinner.id == product.id) Color(0xFFF3FBF7) else Color(0xFFF7F8FD),
+                                border = BorderStroke(1.dp, if (quickAiComparison.overallWinner.id == product.id) Color(0xFFCCEFE2) else Color(0xFFE2E6F5))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    if (quickAiComparison.overallWinner.id == product.id) {
+                                        Text(
+                                            text = "🏆 BEST CHOICE",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color(0xFF1A8068),
+                                            modifier = Modifier.padding(bottom = 2.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = product.name,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E2135),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = product.price,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF5050F0)
+                                    )
+                                    Text(
+                                        text = "★ ${product.rating} · ${product.valueScore}/10",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF7A8398)
+                                    )
+                                }
+                            }
+
+                            // VS Pill
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFEEF0FF)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "VS",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF5050F0)
+                                )
+                            }
+
+                            // Rival Product
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (quickAiComparison.overallWinner.id == topRival.id) Color(0xFFF3FBF7) else Color(0xFFF7F8FD),
+                                border = BorderStroke(1.dp, if (quickAiComparison.overallWinner.id == topRival.id) Color(0xFFCCEFE2) else Color(0xFFE2E6F5))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    if (quickAiComparison.overallWinner.id == topRival.id) {
+                                        Text(
+                                            text = "🏆 BEST CHOICE",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color(0xFF1A8068),
+                                            modifier = Modifier.padding(bottom = 2.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = topRival.name,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E2135),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = topRival.price,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF1E2135)
+                                    )
+                                    Text(
+                                        text = "★ ${topRival.rating} · ${topRival.valueScore}/10",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF7A8398)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // AI Verdict Note
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFFF7F8FD),
+                            border = BorderStroke(1.dp, Color(0xFFE8ECF8))
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "💡 ${quickAiComparison.verdictSummary}",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF2C3E50),
+                                    lineHeight = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "🎯 ${quickAiComparison.buyerRecommendation}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1A8068)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Direct Button to Full Side-by-Side Comparison Screen
+                        OutlinedButton(
+                            onClick = { onCompareClick(product.name, topRival.name) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFF5050F0)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF5050F0))
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.CompareArrows,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Compare Full Specs Side-by-Side ↗",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // Pros, cons & alternatives link
@@ -650,6 +898,140 @@ fun FullProductOverviewScreen(
             )
 
             Spacer(modifier = Modifier.height(20.dp))
+
+            // DIRECT STORE OPEN BUTTONS (FLIPKART & AMAZON)
+            val storeComp = remember(product) { StoreComparisonRepository.getStoreComparison(product) }
+            val hasAmzApp = remember { StoreComparisonRepository.getInstalledAmazonPackage(context) != null }
+            val hasFlpApp = remember { StoreComparisonRepository.isFlipkartInstalled(context) }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Open in Flipkart Button
+                Button(
+                    onClick = {
+                        StoreComparisonRepository.openFlipkart(
+                            context = context,
+                            url = storeComp.flipkart.buyUrl,
+                            productName = product.name
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2874F0)),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (hasFlpApp) "Open Flipkart App" else "Open in Flipkart",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1
+                    )
+                }
+
+                // Open in Amazon Button
+                Button(
+                    onClick = {
+                        StoreComparisonRepository.openAmazon(
+                            context = context,
+                            url = storeComp.amazon.buyUrl,
+                            productName = product.name
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9900)),
+                    contentPadding = PaddingValues(horizontal = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = null,
+                        tint = Color(0xFF111111),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (hasAmzApp) "Open Amazon App" else "Open in Amazon",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111111),
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Direct Open Croma & Reliance Digital Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        StoreComparisonRepository.openStoreProduct(
+                            context = context,
+                            url = storeComp.croma.buyUrl,
+                            packageName = storeComp.croma.appPackage,
+                            productName = product.name
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF00B4B4)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF007E7E)),
+                    contentPadding = PaddingValues(horizontal = 6.dp)
+                ) {
+                    Text(
+                        text = "Open Croma (${storeComp.croma.formattedPrice}) ↗",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        StoreComparisonRepository.openStoreProduct(
+                            context = context,
+                            url = storeComp.relianceDigital.buyUrl,
+                            packageName = storeComp.relianceDigital.appPackage,
+                            productName = product.name
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE42529)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC61C20)),
+                    contentPadding = PaddingValues(horizontal = 6.dp)
+                ) {
+                    Text(
+                        text = "Open Reliance (${storeComp.relianceDigital.formattedPrice}) ↗",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Action Buttons (Wishlist & Compare)
             Row(

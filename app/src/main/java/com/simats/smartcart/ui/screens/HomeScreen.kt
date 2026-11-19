@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.ai.SmartCartAiEngine
 
 @Composable
 fun HomeScreen(
@@ -954,6 +955,8 @@ private fun RecommendationProductCard(
     product: Product,
     onClick: () -> Unit
 ) {
+    val aiAnalysis = remember(product) { SmartCartAiEngine.analyzeProduct(product) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1026,12 +1029,18 @@ private fun RecommendationProductCard(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = product.matchScore,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF5050F0)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFE8F7F2)
+                    ) {
+                        Text(
+                            text = "${aiAnalysis.overallScore}/10 AI Score",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF1A8068),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
@@ -1101,9 +1110,10 @@ private fun RecommendationProductCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = product.bestFor,
-                    fontSize = 11.sp,
-                    color = Color(0xFF5A6478),
+                    text = "🤖 AI Verdict: ${aiAnalysis.verdict} · ${product.bestFor}",
+                    fontSize = 10.sp,
+                    color = Color(0xFF5050F0),
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

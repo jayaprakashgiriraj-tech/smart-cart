@@ -1,0 +1,11 @@
+{
+  "model_name": "Product Recommendation (KNN + Hybrid)",
+  "algorithm": "NearestNeighbors (Cosine) + Interaction Affinity Blending",
+  "evaluation": {
+    "category_cohesion_top5": 1.0,
+    "average_cosine_similarity": 0.8527,
+    "total_catalog_size": 146,
+    "production_catalog_size": 27,
+    "active_user_profiles": 6
+  }
+}

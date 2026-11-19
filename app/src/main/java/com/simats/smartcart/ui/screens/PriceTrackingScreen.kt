@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -26,6 +27,8 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,8 +59,12 @@ fun PriceTrackingScreen(
     }
 
     var notifyTargetPrice by remember { mutableStateOf(true) }
-    var targetPriceText by remember(history) { mutableStateOf(history.suggestedTargetPriceFormatted) }
+    var targetPriceText by remember(history, product) {
+        mutableStateOf(PriceTrackingRepository.getSavedTargetPrice(product.id) ?: history.suggestedTargetPriceFormatted)
+    }
     var isSavedToastShown by remember { mutableStateOf(false) }
+    var showEditPriceDialog by remember { mutableStateOf(false) }
+    var customPriceInput by remember { mutableStateOf("") }
 
     val productIcon = remember(product) {
         getProductCategoryIcon(product)
@@ -78,6 +85,7 @@ fun PriceTrackingScreen(
                     Button(
                         onClick = {
                             isSavedToastShown = true
+                            PriceTrackingRepository.saveTargetPrice(product.id, targetPriceText)
                             onSaveTargetPriceClick()
                         },
                         modifier = Modifier
@@ -94,7 +102,7 @@ fun PriceTrackingScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isSavedToastShown) "Target price alert saved!" else "Save target price alert",
+                            text = if (isSavedToastShown) "Target price alert saved! ($targetPriceText)" else "Save target price alert",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -613,7 +621,11 @@ fun PriceTrackingScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 12.dp)
+                        ) {
                             Text(
                                 text = "Your target price alert",
                                 fontSize = 14.sp,
@@ -624,23 +636,41 @@ fun PriceTrackingScreen(
                             Text(
                                 text = "Instant alert when price hits or drops below this",
                                 fontSize = 11.sp,
-                                color = Color(0xFF7A8398)
+                                color = Color(0xFF7A8398),
+                                lineHeight = 15.sp
                             )
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF2F4FF))
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
+                        Surface(
+                            onClick = {
+                                customPriceInput = targetPriceText.replace("₹", "").replace(",", "").trim()
+                                showEditPriceDialog = true
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFF2F4FF),
+                            border = BorderStroke(1.dp, Color(0xFFD6DBFF))
                         ) {
-                            Text(
-                                text = targetPriceText,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF5050F0)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = targetPriceText,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF5050F0),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Outlined.Edit,
+                                    contentDescription = "Edit Price",
+                                    tint = Color(0xFF5050F0),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
                         }
                     }
 
@@ -667,19 +697,28 @@ fun PriceTrackingScreen(
                         TargetPriceChip(
                             label = "Lowest ($lowChip)",
                             isSelected = targetPriceText == lowChip,
-                            onClick = { targetPriceText = lowChip },
+                            onClick = {
+                                targetPriceText = lowChip
+                                isSavedToastShown = false
+                            },
                             modifier = Modifier.weight(1f)
                         )
                         TargetPriceChip(
                             label = "-5% ($minus5)",
                             isSelected = targetPriceText == minus5,
-                            onClick = { targetPriceText = minus5 },
+                            onClick = {
+                                targetPriceText = minus5
+                                isSavedToastShown = false
+                            },
                             modifier = Modifier.weight(1f)
                         )
                         TargetPriceChip(
                             label = "-10% ($minus10)",
                             isSelected = targetPriceText == minus10,
-                            onClick = { targetPriceText = minus10 },
+                            onClick = {
+                                targetPriceText = minus10
+                                isSavedToastShown = false
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -745,6 +784,86 @@ fun PriceTrackingScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
         }
+
+        if (showEditPriceDialog) {
+            AlertDialog(
+                onDismissRequest = { showEditPriceDialog = false },
+                title = {
+                    Text(
+                        text = "Set Custom Target Price",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E2135)
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Current price is ${history.currentPriceFormatted}. Enter your desired alert price in ₹.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF7A8398),
+                            lineHeight = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedTextField(
+                            value = customPriceInput,
+                            onValueChange = { newVal ->
+                                val digitsOnly = newVal.filter { it.isDigit() }
+                                if (digitsOnly.length <= 8) {
+                                    customPriceInput = digitsOnly
+                                }
+                            },
+                            prefix = {
+                                Text(
+                                    text = "₹",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF5050F0)
+                                )
+                            },
+                            placeholder = {
+                                Text(
+                                    text = "e.g. 2500",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFFB0B8C8)
+                                )
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF5050F0),
+                                unfocusedBorderColor = Color(0xFFECEFF8)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val num = customPriceInput.toIntOrNull()
+                            if (num != null && num > 0) {
+                                targetPriceText = ProductCatalog.formatIndianRupees(num)
+                                isSavedToastShown = false
+                            }
+                            showEditPriceDialog = false
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5050F0))
+                    ) {
+                        Text("Set Target", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditPriceDialog = false }) {
+                        Text("Cancel", color = Color(0xFF7A8398))
+                    }
+                },
+                containerColor = Color.White,
+                shape = RoundedCornerShape(20.dp)
+            )
+        }
     }
 }
 
@@ -768,7 +887,9 @@ private fun TargetPriceChip(
             fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             color = if (isSelected) Color.White else Color(0xFF5050F0),
-            maxLines = 1
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

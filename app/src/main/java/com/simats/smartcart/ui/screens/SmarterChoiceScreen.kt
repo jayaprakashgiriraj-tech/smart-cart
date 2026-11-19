@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.ai.SmartCartAiEngine
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.SavedComparisonRepository
 
@@ -39,8 +40,9 @@ fun SmarterChoiceScreen(
 
     val product1 = remember(product1Name) { ProductCatalog.getProductByName(product1Name) }
     val product2 = remember(product2Name) { ProductCatalog.getProductByName(product2Name) }
+    val aiComparison = remember(product1, product2) { SmartCartAiEngine.compare(product1, product2) }
     val isSaved = SavedComparisonRepository.isSaved(product1.name, product2.name)
-    val winner = if (product1.valueScore >= product2.valueScore) product1 else product2
+    val winner = aiComparison.overallWinner
     val loser = if (winner.id == product1.id) product2 else product1
 
     Scaffold(
@@ -179,7 +181,7 @@ fun SmarterChoiceScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "${winner.name} delivers higher overall value (${winner.valueScore}/10) with ${winner.bestFor.lowercase()}. ${loser.name} (${loser.price}) is a worthy alternative if you prefer ${loser.bestFor.lowercase()}.",
+                        text = aiComparison.verdictSummary,
                         fontSize = 13.sp,
                         color = Color(0xFF7A8398),
                         lineHeight = 18.sp

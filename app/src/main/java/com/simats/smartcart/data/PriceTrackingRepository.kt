@@ -13,6 +13,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 object PriceTrackingRepository {
     private val cache = ConcurrentHashMap<String, ProductPriceHistory>()
+    private val savedTargetPrices = ConcurrentHashMap<String, String>()
+
+    fun getSavedTargetPrice(productId: String): String? {
+        return savedTargetPrices[productId]
+    }
+
+    fun saveTargetPrice(productId: String, targetPriceFormatted: String) {
+        savedTargetPrices[productId] = targetPriceFormatted
+    }
 
     fun getCachedOrLocal(product: Product): ProductPriceHistory {
         return cache[product.id] ?: cache[product.name] ?: product.priceHistory

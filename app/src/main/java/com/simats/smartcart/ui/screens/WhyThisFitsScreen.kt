@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.ai.SmartCartAiEngine
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.WishlistRepository
 
@@ -38,6 +39,9 @@ fun WhyThisFitsScreen(
 
     val product = remember(productName) {
         ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
+    }
+    val aiAnalysis = remember(product) {
+        SmartCartAiEngine.analyzeProduct(product)
     }
     val isWishlisted = WishlistRepository.isWishlisted(product.name)
 
@@ -161,11 +165,11 @@ fun WhyThisFitsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    WhyReasonItem(text = "Verdict: ${product.recommendationSummary}")
+                    WhyReasonItem(text = "AI Verdict: ${aiAnalysis.verdict} (${aiAnalysis.overallScore}/10)")
                     Spacer(modifier = Modifier.height(10.dp))
-                    WhyReasonItem(text = "Best For: ${product.bestFor}")
+                    WhyReasonItem(text = "Target Buyer: ${aiAnalysis.targetAudience}")
                     Spacer(modifier = Modifier.height(10.dp))
-                    WhyReasonItem(text = "Hardware: ${product.specs} with official ${product.warranty} warranty.")
+                    WhyReasonItem(text = "Highlight: ${aiAnalysis.summary}")
                 }
             }
 
@@ -206,11 +210,9 @@ fun WhyThisFitsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        val specItems = product.specs.split("·").map { it.trim() }
-                        ProConBullet(text = specItems.getOrNull(0) ?: "${product.brand} build quality")
-                        ProConBullet(text = specItems.getOrNull(1) ?: "${product.category} performance")
-                        ProConBullet(text = product.bestFor)
-                        ProConBullet(text = "${product.warranty} official warranty")
+                        aiAnalysis.pros.forEach { proText ->
+                            ProConBullet(text = proText)
+                        }
                     }
                 }
 
@@ -244,37 +246,8 @@ fun WhyThisFitsScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        when (product.category) {
-                            "Mobiles" -> {
-                                ProConBullet(text = "Fast charger often sold separately")
-                                ProConBullet(text = "High refresh rate uses more battery in 5G gaming")
-                                ProConBullet(text = "No microSD expandable storage")
-                                ProConBullet(text = "Heavy camera usage needs daily charging")
-                            }
-                            "Laptops" -> {
-                                ProConBullet(text = "Soldered RAM/SSD on thin variants")
-                                ProConBullet(text = "Fan audible under peak prolonged loads")
-                                ProConBullet(text = "Charger brick needed for fast gaming power")
-                                ProConBullet(text = "Limited legacy port selection")
-                            }
-                            "Audio" -> {
-                                ProConBullet(text = "On-ear fit may feel snug for glasses wearers")
-                                ProConBullet(text = "No active noise cancelling on budget tier")
-                                ProConBullet(text = "Microphone best in quiet environments")
-                                ProConBullet(text = "Wired cable not included in box")
-                            }
-                            "Fashion" -> {
-                                ProConBullet(text = "Care label instructions must be followed")
-                                ProConBullet(text = "Natural dyes may fade in harsh direct sun")
-                                ProConBullet(text = "Check size guide for optimal fit")
-                                ProConBullet(text = "Gentle wash recommended for longevity")
-                            }
-                            else -> {
-                                ProConBullet(text = "Requires dedicated grounded wall outlet")
-                                ProConBullet(text = "Professional installation recommended")
-                                ProConBullet(text = "Annual filter/maintenance suggested")
-                                ProConBullet(text = "Delivery may take 2-4 business days")
-                            }
+                        aiAnalysis.cons.forEach { conText ->
+                            ProConBullet(text = conText)
                         }
                     }
                 }

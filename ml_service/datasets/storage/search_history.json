@@ -1,0 +1,79 @@
+[
+  {
+    "user_id": 10,
+    "query": "Best gaming laptop under 60000 with 16GB RAM",
+    "extracted_category": "Laptops",
+    "extracted_budget": 60000,
+    "timestamp": "2026-11-18 12:26:33"
+  },
+  {
+    "user_id": 10,
+    "query": "Best gaming laptop under 60000 with 16GB RAM",
+    "extracted_category": "Laptops",
+    "extracted_budget": 60000,
+    "timestamp": "2026-11-18 12:27:06"
+  },
+  {
+    "user_id": 0,
+    "query": "samusng phone under 25k",
+    "extracted_category": "Mobiles",
+    "extracted_budget": 25000,
+    "timestamp": "2026-11-18 12:27:06"
+  },
+  {
+    "user_id": 10,
+    "query": "Best gaming laptop under 60000 with 16GB RAM",
+    "extracted_category": "Laptops",
+    "extracted_budget": 60000,
+    "timestamp": "2026-11-18 12:28:29"
+  },
+  {
+    "user_id": 0,
+    "query": "samusng phone under 25k",
+    "extracted_category": "Mobiles",
+    "extracted_budget": 25000,
+    "timestamp": "2026-11-18 12:28:29"
+  },
+  {
+    "user_id": 10,
+    "query": "Best gaming laptop under 60000 with 16GB RAM",
+    "extracted_category": "Laptops",
+    "extracted_budget": 60000,
+    "timestamp": "2026-11-18 12:29:04"
+  },
+  {
+    "user_id": 0,
+    "query": "samusng phone under 25k",
+    "extracted_category": "Mobiles",
+    "extracted_budget": 25000,
+    "timestamp": "2026-11-18 12:29:04"
+  },
+  {
+    "user_id": 10,
+    "query": "Best gaming laptop under 60000 with 16GB RAM",
+    "extracted_category": "Laptops",
+    "extracted_budget": 60000,
+    "timestamp": "2026-11-18 12:29:26"
+  },
+  {
+    "user_id": 0,
+    "query": "samusng phone under 25k",
+    "extracted_category": "Mobiles",
+    "extracted_budget": 25000,
+    "timestamp": "2026-11-18 12:29:26"
+  },
+  {
+    "user_id": 10,
+    "query": "Best gaming laptop under 60000 with 16GB RAM",
+    "extracted_category": "Laptops",
+    "extracted_budget": 60000,
+    "timestamp": "2026-11-18 12:30:18"
+  },
+  {
+    "user_id": 0,
+    "query": "samusng phone under 25k",
+    "extracted_category": "Mobiles",
+    "extracted_budget": 25000,
+    "timestamp": "2026-11-18 12:30:18"
+  }
+]

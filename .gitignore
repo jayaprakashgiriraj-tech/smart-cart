@@ -1,6 +1,10 @@
 *.iml
 .gradle
 /local.properties
+/python311/
+python_install*.log
+/ml_service/venv/
+*.joblib
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -13,3 +17,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+/python311/
+python_install*.log
+/ml_service/venv/
+*.joblib

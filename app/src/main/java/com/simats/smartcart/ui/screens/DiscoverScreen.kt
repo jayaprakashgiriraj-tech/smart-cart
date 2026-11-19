@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.ai.SmartCartAiEngine
 import com.simats.smartcart.data.Product
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.storeComparison
@@ -62,19 +63,28 @@ fun DiscoverScreen(
         }
     }
 
-    val filteredProducts: List<Product> = remember(searchQuery, selectedCategory) {
+    val aiSearchResponse = remember(searchQuery, selectedCategory) {
         val query = searchQuery.trim()
-        if (query.isEmpty()) {
+        val queryToRun = if (query.isNotBlank()) query else if (selectedCategory != "All") selectedCategory else ""
+        if (queryToRun.isNotBlank()) {
+            SmartCartAiEngine.search(
+                query = queryToRun,
+                categoryFilter = if (selectedCategory == "All") null else selectedCategory
+            )
+        } else {
+            null
+        }
+    }
+
+    val filteredProducts: List<Product> = remember(aiSearchResponse, selectedCategory) {
+        if (aiSearchResponse != null) {
+            aiSearchResponse.results.map { it.product }
+        } else {
             if (selectedCategory == "All") {
                 ProductCatalog.products
             } else {
                 ProductCatalog.getProductsByCategory(selectedCategory)
             }
-        } else {
-            ProductCatalog.searchProducts(
-                query = query,
-                categoryFilter = if (selectedCategory == "All") null else selectedCategory
-            )
         }
     }
 
@@ -353,7 +363,7 @@ fun DiscoverScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "SmartCart AI matched ${filteredProducts.size} products based on specifications, use-case requirements, and price suitability.",
+                            text = aiSearchResponse?.aiSummary ?: "SmartCart AI matched ${filteredProducts.size} products based on specifications, use-case requirements, and price suitability.",
                             fontSize = 12.sp,
                             color = Color(0xFF5A6478),
                             lineHeight = 16.sp

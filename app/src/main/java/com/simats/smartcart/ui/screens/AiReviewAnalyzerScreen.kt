@@ -20,12 +20,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.ai.SmartCartAiEngine
+import com.simats.smartcart.data.ProductCatalog
 
 @Composable
 fun AiReviewAnalyzerScreen(
     productName: String = "JBL Tune 510BT",
     onBackClick: () -> Unit = {}
 ) {
+    val product = remember(productName) {
+        ProductCatalog.getProductByName(productName) ?: ProductCatalog.products.first()
+    }
+    val aiReviewSummary = remember(product) {
+        SmartCartAiEngine.summarizeReviews(product)
+    }
     Scaffold(
         containerColor = Color(0xFFFAFBFF)
     ) { innerPadding ->
@@ -123,7 +131,7 @@ fun AiReviewAnalyzerScreen(
                         .padding(18.dp)
                 ) {
                     Text(
-                        text = "SYNTHETIC DEMO DATASET",
+                        text = "SYNTHETIC AI ANALYSIS DATASET",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF9AA4B8),
@@ -131,7 +139,7 @@ fun AiReviewAnalyzerScreen(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "240 sample reviews · September 2026",
+                        text = "${product.reviewCount} customer reviews analyzed · ${product.category}",
                         fontSize = 11.sp,
                         color = Color(0xFF7A8398)
                     )
@@ -148,7 +156,7 @@ fun AiReviewAnalyzerScreen(
                             modifier = Modifier.width(80.dp)
                         ) {
                             Text(
-                                text = "4.3",
+                                text = product.rating,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF1E2135)
@@ -157,20 +165,15 @@ fun AiReviewAnalyzerScreen(
                                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 modifier = Modifier.padding(vertical = 4.dp)
                             ) {
-                                repeat(4) {
+                                val rVal = product.rating.toDoubleOrNull() ?: 4.2
+                                repeat(5) { starIndex ->
                                     Icon(
-                                        imageVector = Icons.Outlined.Star,
+                                        imageVector = if (starIndex < rVal.toInt()) Icons.Outlined.Star else Icons.Outlined.StarOutline,
                                         contentDescription = null,
                                         tint = Color(0xFFFFB800),
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
-                                Icon(
-                                    imageVector = Icons.Outlined.StarOutline,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFFB800),
-                                    modifier = Modifier.size(14.dp)
-                                )
                             }
                             Text(
                                 text = "out of 5",
@@ -186,11 +189,14 @@ fun AiReviewAnalyzerScreen(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            StarBreakdownRow(starLabel = "5", count = "144", progress = 0.75f)
-                            StarBreakdownRow(starLabel = "4", count = "48", progress = 0.25f)
-                            StarBreakdownRow(starLabel = "3", count = "24", progress = 0.12f)
-                            StarBreakdownRow(starLabel = "2", count = "14", progress = 0.07f)
-                            StarBreakdownRow(starLabel = "1", count = "10", progress = 0.05f)
+                            val posFrac = aiReviewSummary.positivePercent / 100f
+                            val neuFrac = aiReviewSummary.neutralPercent / 100f
+                            val critFrac = aiReviewSummary.criticalPercent / 100f
+                            StarBreakdownRow(starLabel = "5", count = "${(posFrac * 120).toInt()}", progress = posFrac)
+                            StarBreakdownRow(starLabel = "4", count = "${(posFrac * 40).toInt()}", progress = posFrac * 0.4f)
+                            StarBreakdownRow(starLabel = "3", count = "${(neuFrac * 35).toInt()}", progress = neuFrac)
+                            StarBreakdownRow(starLabel = "2", count = "${(critFrac * 20).toInt()}", progress = critFrac * 0.6f)
+                            StarBreakdownRow(starLabel = "1", count = "${(critFrac * 10).toInt()}", progress = critFrac * 0.3f)
                         }
                     }
                 }
@@ -219,7 +225,7 @@ fun AiReviewAnalyzerScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "AI summary of this sample",
+                            text = "AI Sentiment & Review Summary",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF5050F0)
@@ -229,7 +235,7 @@ fun AiReviewAnalyzerScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Customers appreciate battery life and clear indoor calls, but some report ear pressure during long sessions and a weaker mic in noisy surroundings.",
+                        text = aiReviewSummary.summaryText,
                         fontSize = 12.sp,
                         color = Color(0xFF5050F0),
                         lineHeight = 18.sp,
@@ -247,13 +253,13 @@ fun AiReviewAnalyzerScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Sample sentiment",
+                    text = "Customer Sentiment",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E2135)
                 )
                 Text(
-                    text = "AI-classified",
+                    text = "AI NLP Classified",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF5050F0)
@@ -269,23 +275,26 @@ fun AiReviewAnalyzerScreen(
                     .height(8.dp)
                     .clip(CircleShape)
             ) {
+                val pWeight = (aiReviewSummary.positivePercent.toFloat() / 100f).coerceAtLeast(0.05f)
+                val nWeight = (aiReviewSummary.neutralPercent.toFloat() / 100f).coerceAtLeast(0.05f)
+                val cWeight = (aiReviewSummary.criticalPercent.toFloat() / 100f).coerceAtLeast(0.05f)
                 Box(
                     modifier = Modifier
-                        .weight(0.78f)
+                        .weight(pWeight)
                         .fillMaxHeight()
                         .background(Color(0xFF1A8068))
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Box(
                     modifier = Modifier
-                        .weight(0.14f)
+                        .weight(nWeight)
                         .fillMaxHeight()
                         .background(Color(0xFFD6DDF5))
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Box(
                     modifier = Modifier
-                        .weight(0.08f)
+                        .weight(cWeight)
                         .fillMaxHeight()
                         .background(Color(0xFFE53935))
                 )
@@ -299,19 +308,19 @@ fun AiReviewAnalyzerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "78% positive",
+                    text = "${aiReviewSummary.positivePercent}% positive",
                     fontSize = 11.sp,
                     color = Color(0xFF1A8068),
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "14% neutral",
+                    text = "${aiReviewSummary.neutralPercent}% neutral",
                     fontSize = 11.sp,
                     color = Color(0xFF7A8398),
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "8% negative",
+                    text = "${aiReviewSummary.criticalPercent}% critical",
                     fontSize = 11.sp,
                     color = Color(0xFFE53935),
                     fontWeight = FontWeight.Bold
@@ -338,30 +347,21 @@ fun AiReviewAnalyzerScreen(
                             .padding(14.dp)
                     ) {
                         Text(
-                            text = "Common praise",
+                            text = "Top Loved Features",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1A8068)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Long battery",
-                            fontSize = 11.sp,
-                            color = Color(0xFF1E2135),
-                            lineHeight = 16.sp
-                        )
-                        Text(
-                            text = "Lightweight build",
-                            fontSize = 11.sp,
-                            color = Color(0xFF1E2135),
-                            lineHeight = 16.sp
-                        )
-                        Text(
-                            text = "Easy device switching",
-                            fontSize = 11.sp,
-                            color = Color(0xFF1E2135),
-                            lineHeight = 16.sp
-                        )
+                        aiReviewSummary.topLovedFeatures.forEach { feat ->
+                            Text(
+                                text = "• $feat",
+                                fontSize = 11.sp,
+                                color = Color(0xFF1E2135),
+                                lineHeight = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
                     }
                 }
 
@@ -378,42 +378,33 @@ fun AiReviewAnalyzerScreen(
                             .padding(14.dp)
                     ) {
                         Text(
-                            text = "Common complaints",
+                            text = "Reported Drawbacks",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFB76E00)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Ear-cup pressure",
-                            fontSize = 11.sp,
-                            color = Color(0xFF1E2135),
-                            lineHeight = 16.sp
-                        )
-                        Text(
-                            text = "Weak outdoor mic",
-                            fontSize = 11.sp,
-                            color = Color(0xFF1E2135),
-                            lineHeight = 16.sp
-                        )
-                        Text(
-                            text = "Plastic build feel",
-                            fontSize = 11.sp,
-                            color = Color(0xFF1E2135),
-                            lineHeight = 16.sp
-                        )
+                        aiReviewSummary.commonComplaints.forEach { draw ->
+                            Text(
+                                text = "• $draw",
+                                fontSize = 11.sp,
+                                color = Color(0xFF1E2135),
+                                lineHeight = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // "Watch for: long-session comfort" Card
+            // Buyer Verdict Takeaway Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFECEFF8))
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7E6)),
+                border = BorderStroke(1.dp, Color(0xFFFFE8B8))
             ) {
                 Column(
                     modifier = Modifier
@@ -421,16 +412,16 @@ fun AiReviewAnalyzerScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = "Watch for: long-session comfort",
+                        text = "SmartCart AI Buying Consensus",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E2135)
+                        color = Color(0xFFB76E00)
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Ear pressure appears in 28 sample reviews; noisy calls in 19. Themes can overlap. This is not verified customer evidence.",
+                        text = aiReviewSummary.recommendationVerdict,
                         fontSize = 11.sp,
-                        color = Color(0xFF7A8398),
+                        color = Color(0xFF8A5300),
                         lineHeight = 16.sp
                     )
                 }

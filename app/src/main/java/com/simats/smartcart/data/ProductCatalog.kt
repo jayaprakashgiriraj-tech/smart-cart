@@ -1416,4 +1416,8 @@ object ProductCatalog {
             lastUpdatedText = "Updated today at ${java.text.SimpleDateFormat("hh:mm a", java.util.Locale.ENGLISH).format(java.util.Date())}"
         )
     }
+
+    fun getAllProducts(): List<Product> {
+        return products
+    }
 }

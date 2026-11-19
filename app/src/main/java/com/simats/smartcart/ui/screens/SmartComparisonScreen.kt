@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.ai.SmartCartAiEngine
 import com.simats.smartcart.data.Product
 import com.simats.smartcart.data.ProductCatalog
 
@@ -150,13 +151,17 @@ fun SmartComparisonScreen(
     val product1 = remember(currentProd1Name) { ProductCatalog.getProductByName(currentProd1Name) }
     val product2 = remember(currentProd2Name) { ProductCatalog.getProductByName(currentProd2Name) }
 
+    val aiComparison = remember(product1, product2) {
+        SmartCartAiEngine.compare(product1, product2)
+    }
+
     var showChangeP1Sheet by remember { mutableStateOf(false) }
     var showChangeP2Sheet by remember { mutableStateOf(false) }
 
     val icon1 = remember(product1) { getProductCategoryIcon(product1) }
     val icon2 = remember(product2) { getProductCategoryIcon(product2) }
 
-    val winner = if (product1.valueScore >= product2.valueScore) product1 else product2
+    val winner = aiComparison.overallWinner
     val loser = if (winner.id == product1.id) product2 else product1
 
     val specRows = remember(product1, product2) {
@@ -364,6 +369,36 @@ fun SmartComparisonScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
+                            if (product1.id == winner.id) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFE8F7F2),
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "🏆 AI BEST PICK",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF1A8068),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            } else if (product1.id == aiComparison.budgetWinner.id && aiComparison.priceDiff > 0) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFFFF7E6),
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "💰 SAVE ₹${ProductCatalog.formatIndianRupees(aiComparison.priceDiff)}",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFFB76E00),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
                             Text(
                                 text = product1.name,
                                 fontSize = 12.sp,
@@ -458,6 +493,36 @@ fun SmartComparisonScreen(
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
+
+                            if (product2.id == winner.id) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFE8F7F2),
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "🏆 AI BEST PICK",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF1A8068),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            } else if (product2.id == aiComparison.budgetWinner.id && aiComparison.priceDiff > 0) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFFFF7E6),
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "💰 SAVE ₹${ProductCatalog.formatIndianRupees(aiComparison.priceDiff)}",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFFB76E00),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
 
                             Text(
                                 text = product2.name,
@@ -630,7 +695,7 @@ fun SmartComparisonScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "${winner.name}: top overall value pick",
+                            text = "${winner.name}: AI Overall Winner",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1A8068)
@@ -640,11 +705,30 @@ fun SmartComparisonScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "${winner.name} (${winner.valueScore}/10) delivers greater value with ${winner.bestFor.lowercase()}. Consider ${loser.name} (${loser.price}) if you prioritize ${loser.bestFor.lowercase()}.",
+                        text = aiComparison.verdictSummary,
                         fontSize = 12.sp,
                         color = Color(0xFF1A8068),
                         lineHeight = 18.sp,
                         fontWeight = FontWeight.Medium
+                    )
+
+                    if (aiComparison.priceDiff > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "💡 Budget Winner: ${aiComparison.budgetWinner.name} saves ₹${ProductCatalog.formatIndianRupees(aiComparison.priceDiff)} (${aiComparison.savingsPercent}% savings)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF146A55)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "🎯 Recommendation: ${aiComparison.buyerRecommendation}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF1A8068),
+                        lineHeight = 15.sp
                     )
                 }
             }

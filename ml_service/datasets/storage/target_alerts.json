@@ -1,0 +1,12 @@
+[
+  {
+    "alert_id": "alt_10_mob_1_1794985218",
+    "user_id": 10,
+    "product_id": "mob_1",
+    "product_name": "Nothing Phone (2a) 5G",
+    "target_price": 19000.0,
+    "created_at_price": 19679.18,
+    "is_active": true,
+    "created_at": "2026-11-18 12:30:18"
+  }
+]
