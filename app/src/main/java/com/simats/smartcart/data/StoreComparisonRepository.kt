@@ -75,6 +75,7 @@ data class RawStoreEntry(
 
 object StoreComparisonRepository {
     private val cache = ConcurrentHashMap<String, ProductStoreComparison>()
+    const val RAPIDAPI_KEY = "5daa6adb57msh5a4a3ffec32d875p1b6f6djsnadd0ae2db52e"
 
     fun isAppInstalled(context: Context, packageName: String): Boolean {
         return try {
@@ -262,8 +263,20 @@ object StoreComparisonRepository {
     suspend fun getLiveStoreComparison(product: Product): ProductStoreComparison {
         return withContext(Dispatchers.IO) {
             val cached = cache[product.id] ?: cache[product.name]
-            if (cached != null) return@withContext cached
+            if (cached != null && cached.amazon.seller != "Fallback") return@withContext cached
 
+            // Strategy 1: Direct RapidAPI Live Fetch (Works directly from phone over internet!)
+            try {
+                val liveAmz = fetchLiveAmazonFromRapidApi(product.name)
+                if (liveAmz != null) {
+                    val comp = buildComparisonWithLiveAmazon(product, liveAmz)
+                    cache[product.id] = comp
+                    cache[product.name] = comp
+                    return@withContext comp
+                }
+            } catch (_: Exception) {}
+
+            // Strategy 2: Query Local PHP Backend (If running on XAMPP)
             try {
                 for (baseUrl in AuthNetworkClient.CANDIDATE_URLS) {
                     val endpoints = listOf(
@@ -302,6 +315,111 @@ object StoreComparisonRepository {
             cache[product.name] = local
             return@withContext local
         }
+    }
+
+    private fun fetchLiveAmazonFromRapidApi(query: String): StorePriceInfo? {
+        try {
+            val encoded = Uri.encode(query)
+            val url = URL("https://real-time-amazon-data.p.rapidapi.com/search?query=$encoded&page=1&country=IN")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("x-rapidapi-key", RAPIDAPI_KEY)
+            conn.setRequestProperty("x-rapidapi-host", "real-time-amazon-data.p.rapidapi.com")
+            conn.setRequestProperty("Accept", "application/json")
+
+            if (conn.responseCode in 200..299) {
+                val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                val json = JSONObject(reader.use { it.readText() })
+                val data = json.optJSONObject("data")
+                val products = data?.optJSONArray("products")
+                if (products != null && products.length() > 0) {
+                    val first = products.getJSONObject(0)
+                    val asin = first.optString("asin", "")
+                    val title = first.optString("product_title", query)
+                    val rawPrice = first.optString("product_price", "")
+                    val rawOrigPrice = first.optString("product_original_price", "")
+
+                    val price = parseCleanPrice(rawPrice)
+                    if (price <= 0) return null
+
+                    val origPrice = parseCleanPrice(rawOrigPrice).let { if (it > price) it else (price * 1.25).toInt() }
+                    val discount = if (origPrice > price) "${(((origPrice - price).toDouble() / origPrice) * 100).toInt()}% off" else ""
+                    val rating = first.optString("product_star_rating", "4.1")
+                    val numRatings = first.optInt("product_num_ratings", 1000)
+                    val delivery = first.optString("delivery", "⚡ Prime FREE Delivery Tomorrow")
+                    val productUrl = first.optString("product_url", "https://www.amazon.in/dp/$asin")
+
+                    return StorePriceInfo(
+                        storeName = "Amazon India",
+                        shortName = "Amazon",
+                        productTitle = title,
+                        price = price,
+                        formattedPrice = ProductCatalog.formatIndianRupees(price),
+                        originalPrice = origPrice,
+                        formattedOriginalPrice = ProductCatalog.formatIndianRupees(origPrice),
+                        discountPercent = discount,
+                        isCheapest = true,
+                        rating = rating,
+                        ratingsCount = "${ProductCatalog.formatIndianRupees(numRatings)} ratings",
+                        delivery = delivery,
+                        seller = "Amazon Live Price",
+                        offer = "Flat ₹100 Instant Cashback with Amazon Pay UPI",
+                        buyUrl = productUrl,
+                        appPackage = "com.amazon.mShop.android.shopping",
+                        accentColorHex = "#FF9900"
+                    )
+                }
+            }
+        } catch (_: Exception) {}
+        return null
+    }
+
+    private fun parseCleanPrice(raw: String): Int {
+        if (raw.isBlank()) return 0
+        val digits = raw.filter { it.isDigit() }
+        return digits.toIntOrNull() ?: 0
+    }
+
+    private fun buildComparisonWithLiveAmazon(product: Product, liveAmz: StorePriceInfo): ProductStoreComparison {
+        val base = calculateLocalComparison(product)
+        val flpPrice = base.flipkart.price
+        val cromaPrice = base.croma.price
+        val reliancePrice = base.relianceDigital.price
+        val amzPrice = liveAmz.price
+
+        val minPrice = minOf(amzPrice, flpPrice, cromaPrice, reliancePrice)
+        val maxPrice = maxOf(amzPrice, flpPrice, cromaPrice, reliancePrice)
+        val diff = maxPrice - minPrice
+        val cheaperStore = when (minPrice) {
+            amzPrice -> "Amazon"
+            flpPrice -> "Flipkart"
+            cromaPrice -> "Croma"
+            else -> "Reliance Digital"
+        }
+
+        val updatedAmz = liveAmz.copy(isCheapest = amzPrice == minPrice)
+        val updatedFlp = base.flipkart.copy(isCheapest = flpPrice == minPrice)
+        val updatedCroma = base.croma.copy(isCheapest = cromaPrice == minPrice)
+        val updatedRel = base.relianceDigital.copy(isCheapest = reliancePrice == minPrice)
+
+        val allStores = listOf(updatedAmz, updatedFlp, updatedCroma, updatedRel).sortedBy { it.price }
+
+        return ProductStoreComparison(
+            productId = product.id,
+            productName = product.name,
+            basePriceFormatted = product.price,
+            cheaperStore = cheaperStore,
+            savings = diff,
+            savingsFormatted = ProductCatalog.formatIndianRupees(diff),
+            verdict = if (diff == 0) "All stores have matching prices today!" else "$cheaperStore offers the lowest live price, saving you ${ProductCatalog.formatIndianRupees(diff)}!",
+            amazon = updatedAmz,
+            flipkart = updatedFlp,
+            croma = updatedCroma,
+            relianceDigital = updatedRel,
+            allStores = allStores
+        )
     }
 
     private fun parseJsonComparison(product: Product, json: JSONObject): ProductStoreComparison {

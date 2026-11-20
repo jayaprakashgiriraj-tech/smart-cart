@@ -117,6 +117,7 @@ object MlNetworkClient {
     val CANDIDATE_URLS = listOf(
         "http://10.0.2.2:8000",
         "http://127.0.0.1:8000",
+        "http://172.23.52.172:8000",
         "http://172.23.49.142:8000"
     )
 
