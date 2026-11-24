@@ -33,6 +33,14 @@ import com.simats.smartcart.data.ProductStoreComparison
 import com.simats.smartcart.data.StoreComparisonRepository
 import com.simats.smartcart.data.StorePriceInfo
 
+private data class StatusBadgeConfig(
+    val text: String,
+    val dotColor: Color,
+    val bgColor: Color,
+    val borderColor: Color,
+    val textColor: Color
+)
+
 @Composable
 fun AmazonFlipkartCompareCard(
     product: Product,
@@ -54,6 +62,16 @@ fun AmazonFlipkartCompareCard(
         border = BorderStroke(1.dp, Color(0xFFE2E6F5))
     ) {
         var viewMode by remember { mutableIntStateOf(0) } // 0 = List Matrix (All Stores), 1 = Side-by-Side Cards
+
+        val amzLive = comparison.amazon.available &&
+                (comparison.amazon.rawPrice ?: 0) > 0 &&
+                !comparison.amazon.isStale &&
+                (comparison.amazon.dataSource == "live_rapidapi" || comparison.amazon.dataSource == "live_amazon_paapi")
+
+        val flpLive = comparison.flipkart.available &&
+                (comparison.flipkart.rawPrice ?: 0) > 0 &&
+                !comparison.flipkart.isStale &&
+                comparison.flipkart.dataSource == "live_affiliate"
 
         Column(
             modifier = Modifier
@@ -106,11 +124,22 @@ fun AmazonFlipkartCompareCard(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Live Sync Pill (Never wraps or squishes)
+                // Authentic Dynamic Status Pill (Never wraps or squishes)
+                val badge = when {
+                    amzLive && flpLive -> StatusBadgeConfig("Live Sync", Color(0xFF00C853), Color(0xFFE8F7F2), Color(0xFFC8ECE0), Color(0xFF1A8068))
+                    amzLive && !flpLive -> StatusBadgeConfig("Amazon Live", Color(0xFF00C853), Color(0xFFE8F7F2), Color(0xFFC8ECE0), Color(0xFF1A8068))
+                    flpLive && !amzLive -> StatusBadgeConfig("Flipkart Live", Color(0xFF00C853), Color(0xFFE8F7F2), Color(0xFFC8ECE0), Color(0xFF1A8068))
+                    comparison.amazon.isStale || comparison.flipkart.isStale -> StatusBadgeConfig("Outdated", Color(0xFFFFA000), Color(0xFFFFF8E7), Color(0xFFFFECB3), Color(0xFFD97706))
+                    comparison.amazon.dataSource == "database_cache" || comparison.flipkart.dataSource == "database_cache" -> StatusBadgeConfig("Cached", Color(0xFF5050F0), Color(0xFFEEF0FF), Color(0xFFD8DCF8), Color(0xFF5050F0))
+                    comparison.status == "offline" -> StatusBadgeConfig("Offline", Color(0xFF8A94A6), Color(0xFFF0F2FA), Color(0xFFE0E4F0), Color(0xFF5A6478))
+                    comparison.status == "initial" -> StatusBadgeConfig("Checking...", Color(0xFF5050F0), Color(0xFFEEF0FF), Color(0xFFD8DCF8), Color(0xFF5050F0))
+                    else -> StatusBadgeConfig("Unavailable", Color(0xFF9AA4B8), Color(0xFFF5F6FA), Color(0xFFE2E6F0), Color(0xFF7A8398))
+                }
+
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFE8F7F2),
-                    border = BorderStroke(1.dp, Color(0xFFC8ECE0))
+                    color = badge.bgColor,
+                    border = BorderStroke(1.dp, badge.borderColor)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
@@ -120,14 +149,14 @@ fun AmazonFlipkartCompareCard(
                             modifier = Modifier
                                 .size(6.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF00C853))
+                                .background(badge.dotColor)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "Live Sync",
+                            text = badge.text,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF1A8068),
+                            color = badge.textColor,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -137,47 +166,116 @@ fun AmazonFlipkartCompareCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Best Deal Banner Highlight
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFFF3FBF7),
-                border = BorderStroke(1.dp, Color(0xFFCCEFE2))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            // Best Deal Banner (Strictly shown only when genuine live comparison verdict is available)
+            val hasValidComparison = amzLive && flpLive &&
+                    comparison.comparisonAvailable &&
+                    comparison.isLiveComparison &&
+                    !comparison.cheaperStoreNullable.isNullOrBlank() &&
+                    comparison.cheaperStoreNullable != "None" &&
+                    (comparison.savingsNullable ?: -1) >= 0 &&
+                    (comparison.amazon.rawPrice ?: 0) > 0 &&
+                    (comparison.flipkart.rawPrice ?: 0) > 0
+
+            if (hasValidComparison) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF3FBF7),
+                    border = BorderStroke(1.dp, Color(0xFFCCEFE2))
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFD4F3E6)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.LocalOffer,
-                            contentDescription = null,
-                            tint = Color(0xFF1A8068),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFD4F3E6)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.LocalOffer,
+                                contentDescription = null,
+                                tint = Color(0xFF1A8068),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "🔥 Best Deal on ${comparison.cheaperStoreNullable} · Save ${comparison.savingsFormatted}!",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF1A8068)
+                            )
+                            if (comparison.verdict.isNotBlank()) {
+                                Text(
+                                    text = comparison.verdict,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF3F8A74),
+                                    lineHeight = 15.sp
+                                )
+                            }
+                        }
                     }
+                }
+            } else {
+                // Neutral Informational Card when comparison is unavailable
+                val infoTitle = when {
+                    amzLive && !flpLive -> "Genuine Amazon Quote Available"
+                    flpLive && !amzLive -> "Genuine Flipkart Quote Available"
+                    comparison.amazon.available && comparison.flipkart.available -> "Store Quotes for Reference"
+                    comparison.status == "offline" -> "Connection Offline"
+                    comparison.status == "initial" -> "Checking Marketplace Prices..."
+                    else -> "Marketplaces Currently Unavailable"
+                }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFF7F8FD),
+                    border = BorderStroke(1.dp, Color(0xFFE2E6F5))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFEEF0FF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = Color(0xFF5050F0),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "🔥 Best Deal on ${comparison.cheaperStore} · Save ${comparison.savingsFormatted}!",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF1A8068)
-                        )
-                        Text(
-                            text = comparison.verdict,
-                            fontSize = 11.sp,
-                            color = Color(0xFF3F8A74),
-                            lineHeight = 15.sp
-                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = infoTitle,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E2135)
+                            )
+                            if (comparison.verdict.isNotBlank()) {
+                                Text(
+                                    text = comparison.verdict,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF5A6478),
+                                    lineHeight = 15.sp
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -191,7 +289,7 @@ fun AmazonFlipkartCompareCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Live Store Prices (4 Stores)",
+                    text = if (amzLive && flpLive && comparison.isLiveComparison) "Live Store Prices (4 Stores)" else "Store Price Quotes (4 Stores)",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E2135)
@@ -243,8 +341,15 @@ fun AmazonFlipkartCompareCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     comparison.allStores.forEach { store ->
+                        val isLowestStore = hasValidComparison &&
+                                store.isCheapest &&
+                                store.available &&
+                                store.isCheapestNullable == true &&
+                                (store.rawPrice ?: 0) > 0
+
                         StorePriceRowItem(
                             storeInfo = store,
+                            isLowest = isLowestStore,
                             onBuyClick = {
                                 StoreComparisonRepository.openStoreProduct(
                                     context = context,
@@ -266,8 +371,15 @@ fun AmazonFlipkartCompareCard(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         comparison.allStores.forEach { store ->
+                            val isLowestStore = hasValidComparison &&
+                                    store.isCheapest &&
+                                    store.available &&
+                                    store.isCheapestNullable == true &&
+                                    (store.rawPrice ?: 0) > 0
+
                             StoreDetailCard(
                                 storeInfo = store,
+                                isLowest = isLowestStore,
                                 onBuyClick = {
                                     StoreComparisonRepository.openStoreProduct(
                                         context = context,
@@ -292,7 +404,7 @@ fun AmazonFlipkartCompareCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Buyhatke-style Quick Price Comparison Bar
+            // Authentic Quick Price Comparison Bar
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = Color(0xFFF7F8FD),
@@ -307,18 +419,25 @@ fun AmazonFlipkartCompareCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     comparison.allStores.forEach { s ->
+                        val isCheapestStore = hasValidComparison &&
+                                s.isCheapest &&
+                                s.available &&
+                                s.isCheapestNullable == true &&
+                                (s.rawPrice ?: 0) > 0
+                        val barPrice = if (s.available && s.rawPrice != null && s.rawPrice > 0) s.formattedPrice else "—"
+
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = s.shortName,
                                 fontSize = 10.sp,
-                                fontWeight = if (s.isCheapest) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (s.isCheapest) Color(0xFF1A8068) else Color(0xFF7A8398)
+                                fontWeight = if (isCheapestStore) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isCheapestStore) Color(0xFF1A8068) else Color(0xFF7A8398)
                             )
                             Text(
-                                text = s.formattedPrice,
+                                text = barPrice,
                                 fontSize = 11.sp,
-                                fontWeight = if (s.isCheapest) FontWeight.ExtraBold else FontWeight.Bold,
-                                color = if (s.isCheapest) Color(0xFF1A8068) else Color(0xFF1E2135)
+                                fontWeight = if (isCheapestStore) FontWeight.ExtraBold else if (s.available && (s.rawPrice ?: 0) > 0) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isCheapestStore) Color(0xFF1A8068) else if (s.available && (s.rawPrice ?: 0) > 0) Color(0xFF1E2135) else Color(0xFF9AA4B8)
                             )
                         }
                     }
@@ -331,6 +450,7 @@ fun AmazonFlipkartCompareCard(
 @Composable
 private fun StorePriceRowItem(
     storeInfo: StorePriceInfo,
+    isLowest: Boolean,
     onBuyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -348,14 +468,21 @@ private fun StorePriceRowItem(
         else -> Color(0xFFE42529)
     }
 
-    val rowBg = if (storeInfo.isCheapest) Color(0xFFF3FBF7) else Color(0xFFFAFBFF)
-    val rowBorder = if (storeInfo.isCheapest) Color(0xFF70CFAC) else Color(0xFFE5E9F5)
+    val isStoreAvailable = storeInfo.available && storeInfo.rawPrice != null && storeInfo.rawPrice > 0
+
+    val isStoreLive = isStoreAvailable &&
+            !storeInfo.isStale &&
+            ((storeInfo.shortName == "Amazon" && (storeInfo.dataSource == "live_rapidapi" || storeInfo.dataSource == "live_amazon_paapi")) ||
+             (storeInfo.shortName == "Flipkart" && storeInfo.dataSource == "live_affiliate"))
+
+    val rowBg = if (isLowest) Color(0xFFF3FBF7) else if (!isStoreAvailable) Color(0xFFFAFAFC) else Color(0xFFFAFBFF)
+    val rowBorder = if (isLowest) Color(0xFF70CFAC) else if (!isStoreAvailable) Color(0xFFE8EBF2) else Color(0xFFE5E9F5)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         color = rowBg,
-        border = BorderStroke(if (storeInfo.isCheapest) 1.5.dp else 1.dp, rowBorder)
+        border = BorderStroke(if (isLowest) 1.5.dp else 1.dp, rowBorder)
     ) {
         Row(
             modifier = Modifier
@@ -364,7 +491,7 @@ private fun StorePriceRowItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: Store Brand Pill + Status
+            // Left: Store Brand Pill + Status Badge
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -381,8 +508,9 @@ private fun StorePriceRowItem(
                         )
                     }
 
-                    if (storeInfo.isCheapest) {
-                        Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    if (isLowest) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
@@ -397,15 +525,81 @@ private fun StorePriceRowItem(
                                 letterSpacing = 0.5.sp
                             )
                         }
+                    } else if (!isStoreAvailable) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFEFF1F7))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "UNAVAILABLE",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF7A8398),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    } else if (storeInfo.isStale) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFFFF8E7))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "OUTDATED",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD97706),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    } else if (storeInfo.dataSource == "database_cache") {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFEEF0FF))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "CACHED",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF5050F0),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    } else if (isStoreLive) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFE8F7F2))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "LIVE",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A8068),
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                val deliveryText = if (!isStoreAvailable) {
+                    if (storeInfo.shortName in listOf("Croma", "Reliance")) "Search directly on store" else "Currently unavailable on store"
+                } else {
+                    if (storeInfo.delivery.isNotBlank() && storeInfo.delivery != "—") storeInfo.delivery else "Delivery information unavailable"
+                }
+
                 Text(
-                    text = storeInfo.delivery,
+                    text = deliveryText,
                     fontSize = 10.5.sp,
-                    color = Color(0xFF5A647A),
+                    color = if (isStoreAvailable) Color(0xFF5A647A) else Color(0xFF8A94A6),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -415,55 +609,65 @@ private fun StorePriceRowItem(
 
             // Middle: Price & Discount
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = storeInfo.formattedPrice,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (storeInfo.isCheapest) Color(0xFF1A8068) else Color(0xFF1E2135)
-                )
-                if (storeInfo.originalPrice > storeInfo.price) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = storeInfo.formattedOriginalPrice,
-                            fontSize = 9.5.sp,
-                            color = Color(0xFF9AA2B5),
-                            style = TextStyle(textDecoration = TextDecoration.LineThrough)
-                        )
-                        if (storeInfo.discountPercent.isNotBlank()) {
-                            Spacer(modifier = Modifier.width(4.dp))
+                if (isStoreAvailable) {
+                    Text(
+                        text = storeInfo.formattedPrice,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isLowest) Color(0xFF1A8068) else Color(0xFF1E2135)
+                    )
+                    if (storeInfo.originalPrice > (storeInfo.rawPrice ?: 0) && storeInfo.formattedOriginalPrice != "—" && storeInfo.formattedOriginalPrice.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = storeInfo.discountPercent,
+                                text = storeInfo.formattedOriginalPrice,
                                 fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFD32F2F)
+                                color = Color(0xFF9AA2B5),
+                                style = TextStyle(textDecoration = TextDecoration.LineThrough)
                             )
+                            if (storeInfo.discountPercent.isNotBlank()) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = storeInfo.discountPercent,
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD32F2F)
+                                )
+                            }
                         }
                     }
+                } else {
+                    Text(
+                        text = "Unavailable",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF8A94A6)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Right: 1-Tap Buy Button
+            // Right: Buy or Search Action Button
+            val buttonLabel = if (isStoreAvailable) "Buy" else "Search"
             Button(
                 onClick = onBuyClick,
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = storeBrandColor),
+                colors = ButtonDefaults.buttonColors(containerColor = if (isStoreAvailable) storeBrandColor else Color(0xFF6B7280)),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 modifier = Modifier.height(34.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Buy",
+                        text = buttonLabel,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (storeInfo.shortName == "Amazon") Color(0xFF111111) else Color.White
+                        color = if (isStoreAvailable && storeInfo.shortName == "Amazon") Color(0xFF111111) else Color.White
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                         contentDescription = null,
-                        tint = if (storeInfo.shortName == "Amazon") Color(0xFF111111) else Color.White,
+                        tint = if (isStoreAvailable && storeInfo.shortName == "Amazon") Color(0xFF111111) else Color.White,
                         modifier = Modifier.size(11.dp)
                     )
                 }
@@ -475,6 +679,7 @@ private fun StorePriceRowItem(
 @Composable
 private fun StoreDetailCard(
     storeInfo: StorePriceInfo,
+    isLowest: Boolean,
     onBuyClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -482,6 +687,8 @@ private fun StoreDetailCard(
     val isAmazon = storeInfo.shortName == "Amazon"
     val isFlipkart = storeInfo.shortName == "Flipkart"
     val isCroma = storeInfo.shortName == "Croma"
+
+    val isStoreAvailable = storeInfo.available && storeInfo.rawPrice != null && storeInfo.rawPrice > 0
 
     val hasApp = remember(storeInfo.shortName) {
         when (storeInfo.shortName) {
@@ -505,21 +712,26 @@ private fun StoreDetailCard(
         else -> Color(0xFFE42529)
     }
 
-    val cardBg = if (storeInfo.isCheapest) Color(0xFFF9FFFC) else Color(0xFFFAFBFF)
-    val cardBorder = if (storeInfo.isCheapest) Color(0xFF70CFAC) else Color(0xFFE4E8F5)
+    val isStoreLive = isStoreAvailable &&
+            !storeInfo.isStale &&
+            ((storeInfo.shortName == "Amazon" && (storeInfo.dataSource == "live_rapidapi" || storeInfo.dataSource == "live_amazon_paapi")) ||
+             (storeInfo.shortName == "Flipkart" && storeInfo.dataSource == "live_affiliate"))
+
+    val cardBg = if (isLowest) Color(0xFFF9FFFC) else if (!isStoreAvailable) Color(0xFFFAFAFC) else Color(0xFFFAFBFF)
+    val cardBorder = if (isLowest) Color(0xFF70CFAC) else if (!isStoreAvailable) Color(0xFFE8EBF2) else Color(0xFFE4E8F5)
 
     Card(
         modifier = modifier.clickable { onBuyClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = BorderStroke(if (storeInfo.isCheapest) 1.5.dp else 1.dp, cardBorder)
+        border = BorderStroke(if (isLowest) 1.5.dp else 1.dp, cardBorder)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Header Row: Store Logo Pill + Best Deal Pill
+            // Header Row: Store Logo Pill + Status Pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -539,7 +751,7 @@ private fun StoreDetailCard(
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
                     )
-                    if (hasApp) {
+                    if (hasApp && isStoreAvailable) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "⚡",
@@ -548,7 +760,7 @@ private fun StoreDetailCard(
                     }
                 }
 
-                if (storeInfo.isCheapest) {
+                if (isLowest) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
@@ -559,6 +771,66 @@ private fun StoreDetailCard(
                             text = "LOWEST",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF1A8068),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                } else if (!isStoreAvailable) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFEFF1F7))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "UNAVAILABLE",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF7A8398),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                } else if (storeInfo.isStale) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFFFF8E7))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "OUTDATED",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD97706),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                } else if (storeInfo.dataSource == "database_cache") {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFEEF0FF))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "CACHED",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF5050F0),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                } else if (isStoreLive) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE8F7F2))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "LIVE",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color(0xFF1A8068),
                             letterSpacing = 0.5.sp
                         )
@@ -586,24 +858,33 @@ private fun StoreDetailCard(
                 verticalAlignment = Alignment.Bottom,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = storeInfo.formattedPrice,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (storeInfo.isCheapest) Color(0xFF1A8068) else Color(0xFF1E2135)
-                )
-                if (storeInfo.originalPrice > storeInfo.price) {
-                    Spacer(modifier = Modifier.width(6.dp))
+                if (isStoreAvailable) {
                     Text(
-                        text = storeInfo.formattedOriginalPrice,
-                        fontSize = 10.sp,
-                        color = Color(0xFF9AA2B5),
-                        style = TextStyle(textDecoration = TextDecoration.LineThrough)
+                        text = storeInfo.formattedPrice,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isLowest) Color(0xFF1A8068) else Color(0xFF1E2135)
+                    )
+                    if (storeInfo.originalPrice > (storeInfo.rawPrice ?: 0) && storeInfo.formattedOriginalPrice != "—" && storeInfo.formattedOriginalPrice.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = storeInfo.formattedOriginalPrice,
+                            fontSize = 10.sp,
+                            color = Color(0xFF9AA2B5),
+                            style = TextStyle(textDecoration = TextDecoration.LineThrough)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Unavailable",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF8A94A6)
                     )
                 }
             }
 
-            if (storeInfo.discountPercent.isNotBlank()) {
+            if (isStoreAvailable && storeInfo.discountPercent.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = storeInfo.discountPercent,
@@ -616,59 +897,75 @@ private fun StoreDetailCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             // Rating & Review Count
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.Star,
-                    contentDescription = null,
-                    tint = Color(0xFFFFB800),
-                    modifier = Modifier.size(12.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
+            if (isStoreAvailable && storeInfo.rating != "—" && storeInfo.rating.isNotBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFB800),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "${storeInfo.rating}${if (storeInfo.ratingsCount.isNotBlank()) " (${storeInfo.ratingsCount})" else ""}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF5A647A)
+                    )
+                }
+            } else {
                 Text(
-                    text = "${storeInfo.rating} (${storeInfo.ratingsCount})",
+                    text = "Rating unavailable",
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF5A647A)
+                    color = Color(0xFF9AA4B8)
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
             // Delivery Info
+            val cardDelivery = if (!isStoreAvailable) {
+                if (storeInfo.shortName in listOf("Croma", "Reliance")) "Search directly on store" else "Currently unavailable"
+            } else {
+                if (storeInfo.delivery.isNotBlank() && storeInfo.delivery != "—") storeInfo.delivery else "Delivery information unavailable"
+            }
+
             Text(
-                text = storeInfo.delivery,
+                text = cardDelivery,
                 fontSize = 10.sp,
-                color = Color(0xFF2C3E50),
+                color = if (isStoreAvailable) Color(0xFF2C3E50) else Color(0xFF8A94A6),
                 fontWeight = FontWeight.Medium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 13.sp
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Bank / Card Offer
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFF1F3FB))
-                    .padding(horizontal = 6.dp, vertical = 5.dp)
-            ) {
-                Text(
-                    text = storeInfo.offer,
-                    fontSize = 9.sp,
-                    color = Color(0xFF4C556D),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 12.sp
-                )
+            // Bank / Card Offer (Only show when genuine offer text exists)
+            if (isStoreAvailable && storeInfo.offer.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF1F3FB))
+                        .padding(horizontal = 6.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = storeInfo.offer,
+                        fontSize = 9.sp,
+                        color = Color(0xFF4C556D),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 12.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             // Buy Action Button
             val buttonText = when {
+                !isStoreAvailable -> "Search on ${storeInfo.shortName}"
                 isAmazon && hasApp -> "Open Amazon App"
                 isAmazon -> "Buy on Amazon"
                 isFlipkart && hasApp -> "Open Flipkart App"
@@ -683,7 +980,7 @@ private fun StoreDetailCard(
                     .height(38.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = storeBrandColor
+                    containerColor = if (isStoreAvailable) storeBrandColor else Color(0xFF6B7280)
                 ),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
             ) {
@@ -695,14 +992,14 @@ private fun StoreDetailCard(
                         text = buttonText,
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isAmazon) Color(0xFF111111) else Color.White,
+                        color = if (isStoreAvailable && isAmazon) Color(0xFF111111) else Color.White,
                         maxLines = 1
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                         contentDescription = null,
-                        tint = if (isAmazon) Color(0xFF111111) else Color.White,
+                        tint = if (isStoreAvailable && isAmazon) Color(0xFF111111) else Color.White,
                         modifier = Modifier.size(12.dp)
                     )
                 }

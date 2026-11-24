@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -899,11 +900,59 @@ fun PriceHistoryGraph(
     history: ProductPriceHistory,
     modifier: Modifier = Modifier
 ) {
+    if (history.pricePoints.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFF0F2FA)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Timeline,
+                        contentDescription = null,
+                        tint = Color(0xFF8B92AB),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "No price history recorded yet",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E2135)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Historical observations will appear when genuine marketplace records become available.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A8398),
+                    lineHeight = 15.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+        }
+        return
+    }
+
     Box(modifier = modifier) {
-        val minPrice = history.lowestPrice.toFloat()
-        val maxPrice = history.highestPrice.toFloat()
-        val priceSpan = (maxPrice - minPrice).coerceAtLeast(1f)
-        val midPrice = (history.highestPrice + history.lowestPrice) / 2
+        val rawMin = history.pricePoints.minOfOrNull { it.price } ?: history.lowestPrice
+        val rawMax = history.pricePoints.maxOfOrNull { it.price } ?: history.highestPrice
+        val minPrice = rawMin.toFloat()
+        val maxPrice = rawMax.toFloat()
+        val priceDiff = maxPrice - minPrice
+        val hasPriceRange = priceDiff > 0f
+        val midPrice = if (hasPriceRange) (rawMax + rawMin) / 2 else rawMin
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
@@ -947,28 +996,42 @@ fun PriceHistoryGraph(
                 pathEffect = dashPathEffect
             )
 
-            // Calculate points accurately aligned to graph bounds
+            // Calculate points accurately and safely
+            val pointsCount = history.pricePoints.size
             val points = history.pricePoints.mapIndexed { index, pt ->
-                val normX = index.toFloat() / (history.pricePoints.size - 1)
-                val normY = (pt.price.toFloat() - minPrice) / priceSpan
-                val x = leftMargin + graphWidth * normX
-                val y = topMargin + graphHeight * (1f - normY.coerceIn(0f, 1f))
-                Offset(x, y)
+                val normX = when {
+                    pointsCount <= 1 -> 0.5f
+                    else -> (index.toFloat() / (pointsCount - 1)).coerceIn(0f, 1f)
+                }
+                val normY = when {
+                    !hasPriceRange -> 0.5f
+                    else -> ((pt.price.toFloat() - minPrice) / priceDiff).coerceIn(0f, 1f)
+                }
+
+                val rawX = leftMargin + graphWidth * normX
+                val rawY = topMargin + graphHeight * (1f - normY)
+                val safeX = if (rawX.isNaN() || rawX.isInfinite()) leftMargin + graphWidth * 0.5f else rawX
+                val safeY = if (rawY.isNaN() || rawY.isInfinite()) midY else rawY
+                Offset(safeX, safeY)
             }
 
-            // Draw gradient area under curve
-            if (points.isNotEmpty()) {
+            // Draw connecting lines and area only when 2 or more points exist
+            if (points.size >= 2) {
                 val fillPath = Path()
                 fillPath.moveTo(points.first().x, points.first().y)
 
-                for (i in 0 until points.size - 1) {
-                    val p0 = points[i]
-                    val p1 = points[i + 1]
-                    val controlX1 = p0.x + (p1.x - p0.x) / 2f
-                    val controlY1 = p0.y
-                    val controlX2 = p0.x + (p1.x - p0.x) / 2f
-                    val controlY2 = p1.y
-                    fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.x, p1.y)
+                if (points.size == 2) {
+                    fillPath.lineTo(points[1].x, points[1].y)
+                } else {
+                    for (i in 0 until points.size - 1) {
+                        val p0 = points[i]
+                        val p1 = points[i + 1]
+                        val controlX1 = p0.x + (p1.x - p0.x) / 2f
+                        val controlY1 = p0.y
+                        val controlX2 = p0.x + (p1.x - p0.x) / 2f
+                        val controlY2 = p1.y
+                        fillPath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.x, p1.y)
+                    }
                 }
 
                 fillPath.lineTo(points.last().x, bottomY)
@@ -984,17 +1047,22 @@ fun PriceHistoryGraph(
                     )
                 )
 
-                // Draw curve line
+                // Draw curve / straight line
                 val linePath = Path()
                 linePath.moveTo(points.first().x, points.first().y)
-                for (i in 0 until points.size - 1) {
-                    val p0 = points[i]
-                    val p1 = points[i + 1]
-                    val controlX1 = p0.x + (p1.x - p0.x) / 2f
-                    val controlY1 = p0.y
-                    val controlX2 = p0.x + (p1.x - p0.x) / 2f
-                    val controlY2 = p1.y
-                    linePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.x, p1.y)
+
+                if (points.size == 2) {
+                    linePath.lineTo(points[1].x, points[1].y)
+                } else {
+                    for (i in 0 until points.size - 1) {
+                        val p0 = points[i]
+                        val p1 = points[i + 1]
+                        val controlX1 = p0.x + (p1.x - p0.x) / 2f
+                        val controlY1 = p0.y
+                        val controlX2 = p0.x + (p1.x - p0.x) / 2f
+                        val controlY2 = p1.y
+                        linePath.cubicTo(controlX1, controlY1, controlX2, controlY2, p1.x, p1.y)
+                    }
                 }
 
                 drawPath(
@@ -1002,117 +1070,174 @@ fun PriceHistoryGraph(
                     color = Color(0xFF5050F0),
                     style = Stroke(width = 2.8.dp.toPx())
                 )
+            }
 
-                // Draw dots at data points
-                points.forEachIndexed { idx, point ->
-                    val pt = history.pricePoints[idx]
-                    when {
-                        pt.isHighest -> {
-                            // Highest point: coral halo & dot
-                            drawCircle(
-                                color = Color(0x33C8422A),
-                                radius = 7.dp.toPx(),
-                                center = point
-                            )
-                            drawCircle(
-                                color = Color(0xFFC8422A),
-                                radius = 4.5.dp.toPx(),
-                                center = point
-                            )
-                            drawCircle(
-                                color = Color.White,
-                                radius = 2.dp.toPx(),
-                                center = point
-                            )
-                        }
-                        pt.isLowest -> {
-                            // Lowest point: emerald halo & dot
-                            drawCircle(
-                                color = Color(0x331A8068),
-                                radius = 7.dp.toPx(),
-                                center = point
-                            )
-                            drawCircle(
-                                color = Color(0xFF1A8068),
-                                radius = 4.5.dp.toPx(),
-                                center = point
-                            )
-                            drawCircle(
-                                color = Color.White,
-                                radius = 2.dp.toPx(),
-                                center = point
-                            )
-                        }
-                        idx == points.size - 1 -> {
-                            // Current point today: active blue halo & dot
-                            drawCircle(
-                                color = Color(0x335050F0),
-                                radius = 6.dp.toPx(),
-                                center = point
-                            )
-                            drawCircle(
-                                color = Color(0xFF5050F0),
-                                radius = 4.dp.toPx(),
-                                center = point
-                            )
-                        }
-                        else -> {
-                            drawCircle(
-                                color = Color(0xFF8B92AB),
-                                radius = 2.5.dp.toPx(),
-                                center = point
-                            )
-                        }
+            // Draw observation markers (dots)
+            points.forEachIndexed { idx, point ->
+                val pt = history.pricePoints[idx]
+                when {
+                    pointsCount == 1 -> {
+                        // Single genuine observation: centered prominent blue marker
+                        drawCircle(
+                            color = Color(0x335050F0),
+                            radius = 8.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color(0xFF5050F0),
+                            radius = 5.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 2.5.dp.toPx(),
+                            center = point
+                        )
+                    }
+                    pt.isHighest && hasPriceRange -> {
+                        // Highest point: coral halo & dot
+                        drawCircle(
+                            color = Color(0x33C8422A),
+                            radius = 7.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color(0xFFC8422A),
+                            radius = 4.5.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 2.dp.toPx(),
+                            center = point
+                        )
+                    }
+                    pt.isLowest && hasPriceRange -> {
+                        // Lowest point: emerald halo & dot
+                        drawCircle(
+                            color = Color(0x331A8068),
+                            radius = 7.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color(0xFF1A8068),
+                            radius = 4.5.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 2.dp.toPx(),
+                            center = point
+                        )
+                    }
+                    idx == points.size - 1 -> {
+                        // Latest observation today: active blue halo & dot
+                        drawCircle(
+                            color = Color(0x335050F0),
+                            radius = 6.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color(0xFF5050F0),
+                            radius = 4.dp.toPx(),
+                            center = point
+                        )
+                    }
+                    else -> {
+                        drawCircle(
+                            color = Color(0xFF8B92AB),
+                            radius = 2.5.dp.toPx(),
+                            center = point
+                        )
                     }
                 }
             }
         }
 
-        // Overlay Axis Text Labels matching exactly the Highest Sold, Mid, and Lowest Sold prices
+        // Overlay Axis Text Labels matching highest, mid, and lowest prices
         Column(
             modifier = Modifier
                 .fillMaxHeight()
                 .width(66.dp)
                 .padding(bottom = 22.dp, top = 8.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = if (hasPriceRange) Arrangement.SpaceBetween else Arrangement.Center
         ) {
-            Text(
-                text = history.highestPriceFormatted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFC8422A)
-            )
-            Text(
-                text = ProductCatalog.formatIndianRupees(midPrice),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF9AA4B8)
-            )
-            Text(
-                text = history.lowestPriceFormatted,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1A8068)
-            )
+            if (hasPriceRange) {
+                Text(
+                    text = if (history.highestPriceFormatted != "—") history.highestPriceFormatted else ProductCatalog.formatIndianRupees(rawMax),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFC8422A)
+                )
+                Text(
+                    text = ProductCatalog.formatIndianRupees(midPrice),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF9AA4B8)
+                )
+                Text(
+                    text = if (history.lowestPriceFormatted != "—") history.lowestPriceFormatted else ProductCatalog.formatIndianRupees(rawMin),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A8068)
+                )
+            } else {
+                val displayPrice = history.pricePoints.firstOrNull()?.formattedPrice ?: history.currentPriceFormatted
+                Text(
+                    text = displayPrice,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF5050F0)
+                )
+            }
         }
 
         // Real-time dynamic date labels along X-axis
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(start = 68.dp, end = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            val p0 = history.pricePoints.getOrNull(0)?.label ?: "30d ago"
-            val p2 = history.pricePoints.getOrNull(2)?.label ?: "18d ago"
-            val p4 = history.pricePoints.getOrNull(4)?.label ?: "8d ago"
-            val pLast = history.pricePoints.lastOrNull()?.label ?: "Today"
+        if (history.pricePoints.size == 1) {
+            val pt = history.pricePoints.first()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 68.dp, end = 20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = pt.label,
+                    fontSize = 10.sp,
+                    color = Color(0xFF5050F0),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            val labelIndices: List<Int> = when (history.pricePoints.size) {
+                2 -> listOf(0, 1)
+                3 -> listOf(0, 1, 2)
+                4 -> listOf(0, 1, 2, 3)
+                else -> {
+                    val lastIdx = history.pricePoints.size - 1
+                    listOf(0, lastIdx / 3, (2 * lastIdx) / 3, lastIdx).distinct()
+                }
+            }
 
-            Text(p0, fontSize = 10.sp, color = Color(0xFF9AA4B8), fontWeight = FontWeight.Medium)
-            Text(p2, fontSize = 10.sp, color = Color(0xFF9AA4B8), fontWeight = FontWeight.Medium)
-            Text(p4, fontSize = 10.sp, color = Color(0xFF9AA4B8), fontWeight = FontWeight.Medium)
-            Text(pLast, fontSize = 10.sp, color = Color(0xFF5050F0), fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 68.dp, end = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                labelIndices.forEachIndexed { idx, itemIdx ->
+                    val pt = history.pricePoints[itemIdx]
+                    val isLast = (idx == labelIndices.size - 1)
+                    Text(
+                        text = pt.label,
+                        fontSize = 10.sp,
+                        color = if (isLast) Color(0xFF5050F0) else Color(0xFF9AA4B8),
+                        fontWeight = if (isLast) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
+            }
         }
     }
 }

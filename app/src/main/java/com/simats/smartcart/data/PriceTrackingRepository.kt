@@ -62,36 +62,75 @@ object PriceTrackingRepository {
                 }
 
                 if (jsonResult != null) {
-                    val pObj = jsonResult.getJSONObject("product")
-                    val hArray = jsonResult.getJSONArray("history")
+                    val pObj = jsonResult.optJSONObject("product") ?: JSONObject()
+                    val hArray = jsonResult.optJSONArray("history")
 
                     val curPrice = pObj.optInt("numeric_price", product.numericPrice)
-                    val highPrice = pObj.optInt("highest_numeric_price", (curPrice * 1.15).toInt())
-                    val lowPrice = pObj.optInt("lowest_numeric_price", (curPrice * 0.88).toInt())
-                    val highFormatted = pObj.optString("highest_recorded_price", ProductCatalog.formatIndianRupees(highPrice))
-                    val lowFormatted = pObj.optString("lowest_recorded_price", ProductCatalog.formatIndianRupees(lowPrice))
-                    val highDate = pObj.optString("highest_recorded_date", "5 Oct")
-                    val lowDate = pObj.optString("lowest_recorded_date", "31 Oct")
-                    val savings = pObj.optString("savings_from_peak", ProductCatalog.formatIndianRupees(highPrice - curPrice))
-                    val savingsPct = pObj.optInt("savings_percent", 12)
-                    val lastUpdated = jsonResult.optString("last_updated_text", "Updated today (Live)")
+                    val liveSync = jsonResult.optBoolean("live_sync", false)
+                    val lastUpdated = jsonResult.optString("last_updated_text", "No historical price observations recorded yet")
+
+                    val hasHighest = pObj.has("highest_numeric_price") && !pObj.isNull("highest_numeric_price")
+                    val highPrice = if (hasHighest) pObj.optInt("highest_numeric_price", curPrice) else curPrice
+                    val highFormatted = if (hasHighest) {
+                        pObj.optString("highest_recorded_price", ProductCatalog.formatIndianRupees(highPrice))
+                    } else {
+                        "—"
+                    }
+                    val highDate = if (hasHighest && !pObj.isNull("highest_recorded_date")) {
+                        pObj.optString("highest_recorded_date", "—")
+                    } else {
+                        "—"
+                    }
+
+                    val hasLowest = pObj.has("lowest_numeric_price") && !pObj.isNull("lowest_numeric_price")
+                    val lowPrice = if (hasLowest) pObj.optInt("lowest_numeric_price", curPrice) else curPrice
+                    val lowFormatted = if (hasLowest) {
+                        pObj.optString("lowest_recorded_price", ProductCatalog.formatIndianRupees(lowPrice))
+                    } else {
+                        "—"
+                    }
+                    val lowDate = if (hasLowest && !pObj.isNull("lowest_recorded_date")) {
+                        pObj.optString("lowest_recorded_date", "—")
+                    } else {
+                        "—"
+                    }
+
+                    val savings = if (hasHighest) pObj.optString("savings_from_peak", "₹0") else "₹0"
+                    val savingsPct = if (hasHighest) pObj.optInt("savings_percent", 0) else 0
 
                     val points = mutableListOf<PricePoint>()
-                    for (i in 0 until hArray.length()) {
-                        val item = hArray.getJSONObject(i)
-                        val priceVal = item.optInt("recorded_price", curPrice)
-                        val lbl = item.optString("label", item.optString("recorded_date", "Day $i"))
-                        val isHigh = item.optBoolean("is_highest", priceVal == highPrice)
-                        val isLow = item.optBoolean("is_lowest", priceVal == lowPrice)
-                        points.add(
-                            PricePoint(
-                                label = lbl,
-                                price = priceVal,
-                                formattedPrice = ProductCatalog.formatIndianRupees(priceVal),
-                                isHighest = isHigh,
-                                isLowest = isLow
+                    if (hArray != null) {
+                        for (i in 0 until hArray.length()) {
+                            val item = hArray.getJSONObject(i)
+                            val priceVal = item.optInt("recorded_price", item.optInt("observed_price", curPrice))
+                            val lbl = item.optString("label", item.optString("recorded_date", "Day ${i + 1}"))
+                            val isHigh = item.optBoolean("is_highest", false)
+                            val isLow = item.optBoolean("is_lowest", false)
+                            val formatted = item.optString("formatted_price", ProductCatalog.formatIndianRupees(priceVal))
+                            points.add(
+                                PricePoint(
+                                    label = lbl,
+                                    price = priceVal,
+                                    formattedPrice = formatted,
+                                    isHighest = isHigh,
+                                    isLowest = isLow
+                                )
                             )
-                        )
+                        }
+                    }
+
+                    val suggestedTarget = if (hasLowest && lowPrice > 0) lowPrice else curPrice
+                    val suggestedTargetFormatted = if (hasLowest && lowPrice > 0) lowFormatted else product.price
+
+                    val predMin = if (pObj.has("estimated_next_week_min_formatted") && !pObj.isNull("estimated_next_week_min_formatted")) {
+                        pObj.optString("estimated_next_week_min_formatted", "—")
+                    } else {
+                        "—"
+                    }
+                    val predMax = if (pObj.has("estimated_next_week_max_formatted") && !pObj.isNull("estimated_next_week_max_formatted")) {
+                        pObj.optString("estimated_next_week_max_formatted", "—")
+                    } else {
+                        "—"
                     }
 
                     val history = ProductPriceHistory(
@@ -105,17 +144,17 @@ object PriceTrackingRepository {
                         lowestPrice = lowPrice,
                         lowestPriceFormatted = lowFormatted,
                         lowestPriceDate = lowDate,
-                        savingsFromPeak = highPrice - curPrice,
+                        savingsFromPeak = if (hasHighest) highPrice - curPrice else 0,
                         savingsFromPeakFormatted = savings,
                         savingsPercent = savingsPct,
-                        pricePoints = points.ifEmpty { product.priceHistory.pricePoints },
+                        pricePoints = points,
                         minGraphBound = lowPrice,
                         maxGraphBound = highPrice,
-                        suggestedTargetPrice = lowPrice,
-                        suggestedTargetPriceFormatted = lowFormatted,
-                        estimatedNextWeekMinFormatted = ProductCatalog.formatIndianRupees((lowPrice * 0.98).toInt()),
-                        estimatedNextWeekMaxFormatted = ProductCatalog.formatIndianRupees((curPrice * 1.03).toInt()),
-                        isLiveSynced = true,
+                        suggestedTargetPrice = suggestedTarget,
+                        suggestedTargetPriceFormatted = suggestedTargetFormatted,
+                        estimatedNextWeekMinFormatted = predMin,
+                        estimatedNextWeekMaxFormatted = predMax,
+                        isLiveSynced = liveSync,
                         lastUpdatedText = lastUpdated
                     )
 
@@ -124,14 +163,34 @@ object PriceTrackingRepository {
                     return@withContext history
                 }
             } catch (_: Exception) {
-                // Ignore and fall through to local real-time generator
+                // Return honest offline state on network failure, do not cache error
             }
 
-            val local = product.priceHistory
-            cache[product.id] = local
-            cache[product.name] = local
-            return@withContext local
+            // Explicit offline error state when network call fails
+            return@withContext ProductPriceHistory(
+                productId = product.id,
+                productName = product.name,
+                currentPrice = product.numericPrice,
+                currentPriceFormatted = product.price,
+                highestPrice = product.numericPrice,
+                highestPriceFormatted = "—",
+                highestPriceDate = "—",
+                lowestPrice = product.numericPrice,
+                lowestPriceFormatted = "—",
+                lowestPriceDate = "—",
+                savingsFromPeak = 0,
+                savingsFromPeakFormatted = "₹0",
+                savingsPercent = 0,
+                pricePoints = emptyList(),
+                minGraphBound = product.numericPrice,
+                maxGraphBound = product.numericPrice,
+                suggestedTargetPrice = product.numericPrice,
+                suggestedTargetPriceFormatted = product.price,
+                estimatedNextWeekMinFormatted = "—",
+                estimatedNextWeekMaxFormatted = "—",
+                isLiveSynced = false,
+                lastUpdatedText = "Unable to connect to price history server (Offline)"
+            )
         }
     }
 }
-
