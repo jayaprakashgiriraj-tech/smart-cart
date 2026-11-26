@@ -40,6 +40,7 @@ import com.simats.smartcart.ui.theme.SMARTCARTTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.simats.smartcart.data.SecureTokenStorage.init(applicationContext)
         enableEdgeToEdge()
         setContent {
             SMARTCARTTheme {

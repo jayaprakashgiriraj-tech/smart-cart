@@ -16,6 +16,15 @@ object UserAccountRepository {
 
     var currentUser: UserAccount? = UserAccount(10, "Jayaprakash G", "jayaprakashgiriraj@gmail.com", null, "password123")
 
+    fun isLoggedIn(): Boolean {
+        return currentUser != null && SecureTokenStorage.hasValidToken()
+    }
+
+    fun logout() {
+        currentUser = null
+        SecureTokenStorage.clearToken()
+    }
+
     fun isEmailRegistered(email: String): Boolean {
         return registeredUsers.any { it.email.equals(email.trim(), ignoreCase = true) }
     }

@@ -33,10 +33,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simats.smartcart.data.PricePoint
 import com.simats.smartcart.data.PriceTrackingRepository
 import com.simats.smartcart.data.Product
 import com.simats.smartcart.data.ProductCatalog
 import com.simats.smartcart.data.ProductPriceHistory
+import kotlinx.coroutines.launch
 
 @Composable
 fun PriceTrackingScreen(
@@ -50,22 +52,45 @@ fun PriceTrackingScreen(
         ProductCatalog.getProductByName(productName)
     }
 
-    var history by remember(product) {
-        mutableStateOf(PriceTrackingRepository.getCachedOrLocal(product))
+    var selectedPlatform by remember { mutableStateOf("all") }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    var history by remember(product, selectedPlatform) {
+        mutableStateOf(PriceTrackingRepository.getCachedOrLocal(product, selectedPlatform))
     }
 
-    LaunchedEffect(product) {
-        val live = PriceTrackingRepository.getLivePriceHistory(product)
+    LaunchedEffect(product, selectedPlatform, refreshTrigger) {
+        isLoading = true
+        val live = PriceTrackingRepository.getLivePriceHistory(
+            product = product,
+            platform = selectedPlatform,
+            forceRefresh = refreshTrigger > 0
+        )
         history = live
+        isLoading = false
     }
+
+    val coroutineScope = rememberCoroutineScope()
 
     var notifyTargetPrice by remember { mutableStateOf(true) }
     var targetPriceText by remember(history, product) {
-        mutableStateOf(PriceTrackingRepository.getSavedTargetPrice(product.id) ?: history.suggestedTargetPriceFormatted)
+        mutableStateOf(
+            PriceTrackingRepository.getSavedTargetPrice(product.id)
+                ?: if (history.suggestedTargetPriceFormatted != "—") history.suggestedTargetPriceFormatted else product.price
+        )
     }
     var isSavedToastShown by remember { mutableStateOf(false) }
     var showEditPriceDialog by remember { mutableStateOf(false) }
     var customPriceInput by remember { mutableStateOf("") }
+
+    LaunchedEffect(product.id) {
+        val remoteAlert = PriceTrackingRepository.fetchTargetPriceRemote(product.id)
+        if (remoteAlert != null && remoteAlert.targetPriceFormatted != null) {
+            targetPriceText = remoteAlert.targetPriceFormatted
+            notifyTargetPrice = remoteAlert.isActive
+        }
+    }
 
     val productIcon = remember(product) {
         getProductCategoryIcon(product)
@@ -85,9 +110,21 @@ fun PriceTrackingScreen(
                 ) {
                     Button(
                         onClick = {
-                            isSavedToastShown = true
-                            PriceTrackingRepository.saveTargetPrice(product.id, targetPriceText)
-                            onSaveTargetPriceClick()
+                            val cleanNumber = targetPriceText.replace("₹", "").replace(",", "").trim().toIntOrNull() ?: 0
+                            if (cleanNumber > 0) {
+                                coroutineScope.launch {
+                                    val res = PriceTrackingRepository.saveTargetPriceRemote(product.id, cleanNumber)
+                                    if (res.isSuccess) {
+                                        isSavedToastShown = true
+                                        PriceTrackingRepository.saveTargetPrice(product.id, targetPriceText)
+                                        onSaveTargetPriceClick()
+                                    }
+                                }
+                            } else {
+                                isSavedToastShown = true
+                                PriceTrackingRepository.saveTargetPrice(product.id, targetPriceText)
+                                onSaveTargetPriceClick()
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -151,26 +188,26 @@ fun PriceTrackingScreen(
                                 modifier = Modifier
                                     .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF00C853))
+                                    .background(if (history.isError) Color(0xFFC8422A) else Color(0xFF00C853))
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Live real-time market tracking",
+                                text = if (history.isError) "Offline mode" else "Live real-time market tracking",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF00C853)
+                                color = if (history.isError) Color(0xFFC8422A) else Color(0xFF00C853)
                             )
                         }
                     }
                 }
 
                 IconButton(
-                    onClick = { },
+                    onClick = { refreshTrigger++ },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Notifications,
-                        contentDescription = "Notifications",
+                        imageVector = Icons.Outlined.Refresh,
+                        contentDescription = "Refresh",
                         tint = Color(0xFF5050F0),
                         modifier = Modifier.size(20.dp)
                     )
@@ -180,26 +217,35 @@ fun PriceTrackingScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Real-time Live Status Banner
+            val bannerBg = if (history.isError) Color(0xFFFFF0EE) else Color(0xFFE8F7F2)
+            val bannerBorder = if (history.isError) Color(0xFFFFD8CE) else Color(0xFFC8ECE0)
+            val bannerTint = if (history.isError) Color(0xFFC8422A) else Color(0xFF1A8068)
+            val bannerIcon = if (history.isError) Icons.Outlined.CloudOff else Icons.Outlined.CheckCircle
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFE8F7F2))
-                    .border(BorderStroke(1.dp, Color(0xFFC8ECE0)), RoundedCornerShape(12.dp))
+                    .background(bannerBg)
+                    .border(BorderStroke(1.dp, bannerBorder), RoundedCornerShape(12.dp))
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.CheckCircle,
+                    imageVector = bannerIcon,
                     contentDescription = null,
-                    tint = Color(0xFF1A8068),
+                    tint = bannerTint,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Live store sync: Amazon, Flipkart & Croma · ${history.lastUpdatedText}",
+                    text = if (history.isError) {
+                        "Connection offline · ${history.lastUpdatedText}"
+                    } else {
+                        "Live store sync: Amazon, Flipkart & Croma · ${history.lastUpdatedText}"
+                    },
                     fontSize = 11.sp,
-                    color = Color(0xFF1A8068),
+                    color = bannerTint,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -330,14 +376,14 @@ fun PriceTrackingScreen(
                         Spacer(modifier = Modifier.height(2.dp))
 
                         Text(
-                            text = "Sold on ${history.lowestPriceDate}",
+                            text = if (history.lowestPriceDate != "—") "Sold on ${history.lowestPriceDate}" else "Awaiting observations",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF1A8068)
                         )
 
                         Text(
-                            text = "All-time recorded low",
+                            text = if (history.recordCount > 0) "Recorded marketplace low" else "No observations yet",
                             fontSize = 10.sp,
                             color = Color(0xFF4A9E88)
                         )
@@ -393,14 +439,14 @@ fun PriceTrackingScreen(
                         Spacer(modifier = Modifier.height(2.dp))
 
                         Text(
-                            text = "Sold on ${history.highestPriceDate}",
+                            text = if (history.highestPriceDate != "—") "Sold on ${history.highestPriceDate}" else "Awaiting observations",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFFC8422A)
                         )
 
                         Text(
-                            text = "Launch peak recorded",
+                            text = if (history.recordCount > 0) "Recorded marketplace peak" else "No observations yet",
                             fontSize = 10.sp,
                             color = Color(0xFFB06050)
                         )
@@ -426,8 +472,13 @@ fun PriceTrackingScreen(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
+                val calloutText = if (history.highestPriceFormatted != "—" && history.savingsPercent > 0) {
+                    "Current price is ${history.savingsFromPeakFormatted} (${history.savingsPercent}%) lower than the highest recorded peak price."
+                } else {
+                    "Live price tracking active · Peak savings will compute automatically as daily observations are recorded."
+                }
                 Text(
-                    text = "Current price is ${history.savingsFromPeakFormatted} (${history.savingsPercent}%) lower than the highest recorded peak price.",
+                    text = calloutText,
                     fontSize = 11.sp,
                     color = Color(0xFF5050F0),
                     fontWeight = FontWeight.Medium,
@@ -442,7 +493,7 @@ fun PriceTrackingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Price History Graph Card
+            // Price History Graph Card (with Platform Selection Tabs and Observation List)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -454,6 +505,7 @@ fun PriceTrackingScreen(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
+                    // Header row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -461,7 +513,7 @@ fun PriceTrackingScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Real-Time Price History",
+                                text = "Market Price History",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1E2135)
@@ -471,80 +523,176 @@ fun PriceTrackingScreen(
                                 modifier = Modifier
                                     .size(7.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFF00C853))
+                                    .background(if (isLoading) Color(0xFFFFB300) else Color(0xFF00C853))
                             )
                         }
 
-                        Text(
-                            text = "30-Day Live",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF5050F0)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Legend indicators for High, Low and Current
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFFC8422A))
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                        if (isLoading) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    color = Color(0xFF5050F0),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Syncing...",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF5050F0)
+                                )
+                            }
+                        } else {
                             Text(
-                                text = "High: ${history.highestPriceFormatted}",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFC8422A)
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFF1A8068))
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Low: ${history.lowestPriceFormatted}",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1A8068)
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0xFF5050F0))
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Today: ${history.currentPriceFormatted}",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                text = "Verified Live",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Color(0xFF5050F0)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // Line Graph Canvas
+                    // Platform Filter Selector (All, Amazon, Flipkart)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            "all" to "All Stores",
+                            "amazon" to "Amazon",
+                            "flipkart" to "Flipkart"
+                        ).forEach { (pKey, pLabel) ->
+                            val isSelected = selectedPlatform == pKey
+                            Surface(
+                                onClick = {
+                                    if (selectedPlatform != pKey) {
+                                        selectedPlatform = pKey
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) Color(0xFF5050F0) else Color(0xFFF2F4FF),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF5050F0) else Color(0xFFE2E6F5)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = pLabel,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color(0xFF5050F0),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Legend indicators for High, Low and Current (when records exist)
+                    if (history.pricePoints.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (history.highestPriceFormatted != "—") {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(Color(0xFFC8422A))
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "High: ${history.highestPriceFormatted}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFFC8422A)
+                                    )
+                                }
+                            }
+
+                            if (history.lowestPriceFormatted != "—") {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(Color(0xFF1A8068))
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Low: ${history.lowestPriceFormatted}",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF1A8068)
+                                    )
+                                }
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF5050F0))
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Current: ${history.currentPriceFormatted}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF5050F0)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    // Insufficient History Warning (1 or 2 observations recorded)
+                    if (history.historyStatus == "insufficient_history" && history.recordCount in 1..2) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFFFFF8E6))
+                                .border(BorderStroke(1.dp, Color(0xFFFFE6A0)), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFB57500),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Initial tracking active (${history.recordCount} observation${if (history.recordCount > 1) "s" else ""}). 3+ daily observations needed to chart full price trend.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF8A5A00),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    // Line Graph Canvas / Empty State
                     PriceHistoryGraph(
                         history = history,
+                        selectedPlatform = selectedPlatform,
+                        isLoading = isLoading,
+                        onRetryClick = { refreshTrigger++ },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(160.dp)
@@ -553,51 +701,72 @@ fun PriceTrackingScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Real-time observations · Tracked across live retailers",
+                        text = "Authentic observations · Tracked directly from marketplace product pages",
                         fontSize = 10.sp,
                         color = Color(0xFF9AA4B8)
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Lowest Recorded Banner
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFE8F7F2))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
+                    // Lowest Recorded Banner (if available)
+                    if (history.lowestPriceFormatted != "—" && history.lowestPriceDate != "—") {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
                             modifier = Modifier
-                                .size(28.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFCEEAD6)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFE8F7F2))
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ArrowDownward,
-                                contentDescription = null,
-                                tint = Color(0xFF1A8068),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFCEEAD6)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ArrowDownward,
+                                    contentDescription = null,
+                                    tint = Color(0xFF1A8068),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Column {
+                                Text(
+                                    text = "Lowest recorded price sold: ${history.lowestPriceFormatted}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1A8068)
+                                )
+                                Text(
+                                    text = "${history.lowestPriceDate} · Save ${history.savingsFromPeakFormatted} from launch peak",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF1A8068)
+                                )
+                            }
                         }
+                    }
 
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Column {
-                            Text(
-                                text = "Lowest recorded price sold: ${history.lowestPriceFormatted}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1A8068)
-                            )
-                            Text(
-                                text = "${history.lowestPriceDate} · Save ${history.savingsFromPeakFormatted} from launch peak",
-                                fontSize = 10.sp,
-                                color = Color(0xFF1A8068)
-                            )
+                    // Recorded Observations List
+                    if (history.pricePoints.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Recorded Observations (${history.pricePoints.size})",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E2135)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            history.pricePoints.reversed().take(5).forEach { pt ->
+                                ObservationItemRow(pt = pt)
+                            }
                         }
                     }
                 }
@@ -691,7 +860,7 @@ fun PriceTrackingScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val lowChip = history.lowestPriceFormatted
+                        val lowChip = if (history.lowestPriceFormatted != "—") history.lowestPriceFormatted else product.price
                         val minus5 = ProductCatalog.formatIndianRupees((history.currentPrice * 0.95).toInt())
                         val minus10 = ProductCatalog.formatIndianRupees((history.currentPrice * 0.90).toInt())
 
@@ -740,7 +909,14 @@ fun PriceTrackingScreen(
 
                         Switch(
                             checked = notifyTargetPrice,
-                            onCheckedChange = { notifyTargetPrice = it },
+                            onCheckedChange = { isChecked ->
+                                notifyTargetPrice = isChecked
+                                if (!isChecked) {
+                                    coroutineScope.launch {
+                                        PriceTrackingRepository.removeTargetPriceRemote(product.id)
+                                    }
+                                }
+                            },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = Color(0xFF5050F0)
@@ -774,8 +950,13 @@ fun PriceTrackingScreen(
                             .padding(top = 2.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
+                    val forecastText = if (history.estimatedNextWeekMinFormatted != "—") {
+                        "Price trend forecast: ${history.estimatedNextWeekMinFormatted}–${history.estimatedNextWeekMaxFormatted} expected range over upcoming days based on real-time market patterns for ${product.name}."
+                    } else {
+                        "Price trend forecast: Tracking live price changes to generate accurate market pattern forecasts for ${product.name}."
+                    }
                     Text(
-                        text = "Price trend forecast: ${history.estimatedNextWeekMinFormatted}–${history.estimatedNextWeekMaxFormatted} expected range over upcoming days based on real-time market patterns for ${product.name}.",
+                        text = forecastText,
                         fontSize = 11.sp,
                         color = Color(0xFF5050F0),
                         lineHeight = 15.sp
@@ -869,6 +1050,123 @@ fun PriceTrackingScreen(
 }
 
 @Composable
+private fun ObservationItemRow(pt: PricePoint) {
+    val isAmazon = pt.platform.equals("amazon", ignoreCase = true)
+    val platformBg = if (isAmazon) Color(0xFFFFF3E0) else Color(0xFFE8F0FE)
+    val platformBorder = if (isAmazon) Color(0xFFFFD180) else Color(0xFFBFDBFE)
+    val platformText = if (isAmazon) Color(0xFFD35400) else Color(0xFF1976D2)
+    val platformName = if (isAmazon) "Amazon" else if (pt.platform.equals("flipkart", ignoreCase = true)) "Flipkart" else pt.platform.replaceFirstChar { it.uppercase() }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFF9FAFD))
+            .border(BorderStroke(1.dp, Color(0xFFEEF1F8)), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(platformBg)
+                        .border(BorderStroke(0.5.dp, platformBorder), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = platformName,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = platformText
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                if (pt.isLowest) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE8F7F2))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Lowest",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A8068)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                } else if (pt.isHighest) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFFFF0EE))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Peak",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFC8422A)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+
+                val timestampText = pt.observedAt ?: pt.recordedDate ?: pt.label
+                Text(
+                    text = timestampText,
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A8398),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (!pt.sellerName.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Seller: ${pt.sellerName}",
+                    fontSize = 10.sp,
+                    color = Color(0xFF9AA4B8)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = pt.formattedPrice,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E2135)
+            )
+            if (!pt.inStock) {
+                Text(
+                    text = "Out of Stock",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFC8422A)
+                )
+            } else {
+                Text(
+                    text = "In Stock",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1A8068)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun TargetPriceChip(
     label: String,
     isSelected: Boolean,
@@ -898,8 +1196,80 @@ private fun TargetPriceChip(
 @Composable
 fun PriceHistoryGraph(
     history: ProductPriceHistory,
+    selectedPlatform: String = "all",
+    isLoading: Boolean = false,
+    onRetryClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    if (isLoading && history.pricePoints.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    color = Color(0xFF5050F0),
+                    strokeWidth = 2.5.dp
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Fetching verified price observations...",
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A8398)
+                )
+            }
+        }
+        return
+    }
+
+    if (history.isError && history.pricePoints.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CloudOff,
+                    contentDescription = null,
+                    tint = Color(0xFFC8422A),
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Unable to connect to server",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E2135)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Could not retrieve price history records.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF7A8398),
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onRetryClick,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color(0xFF5050F0)),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text("Retry", fontSize = 11.sp, color = Color(0xFF5050F0), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        return
+    }
+
     if (history.pricePoints.isEmpty()) {
         Box(
             modifier = modifier.fillMaxWidth(),
@@ -908,7 +1278,7 @@ fun PriceHistoryGraph(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -924,22 +1294,49 @@ fun PriceHistoryGraph(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                val emptyTitle = when (selectedPlatform) {
+                    "amazon" -> "No Amazon price history yet"
+                    "flipkart" -> "No Flipkart price history yet"
+                    else -> "No price history recorded yet"
+                }
                 Text(
-                    text = "No price history recorded yet",
+                    text = emptyTitle,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E2135)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Historical observations will appear when genuine marketplace records become available.",
+                    text = "Daily price tracking runs automatically. Observations will appear here once recorded.",
                     fontSize = 11.sp,
                     color = Color(0xFF7A8398),
                     lineHeight = 15.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFE8F7F2))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = null,
+                        tint = Color(0xFF1A8068),
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Authentic observations only · Zero synthetic points",
+                        fontSize = 10.sp,
+                        color = Color(0xFF1A8068),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
         return

@@ -16,7 +16,9 @@ import java.net.URL
 data class AuthResponse(
     val isSuccess: Boolean,
     val message: String,
-    val user: UserAccount? = null
+    val user: UserAccount? = null,
+    val token: String? = null,
+    val expiresAt: String? = null
 )
 
 // Kept for backward compatibility if referenced
@@ -25,11 +27,14 @@ typealias SignUpResponse = AuthResponse
 object AuthNetworkClient {
     // Primary candidate endpoints:
     // 1. "http://127.0.0.1:8080/smartcart_backend" -> Physical Android phone connected via USB cable (adb reverse)
-    // 2. "http://172.23.49.142/smartcart_backend"   -> Machine LAN IP address on local network
+    // 2. "http://172.23.48.104/smartcart_backend"  -> Verified active PC LAN IP address on local network
     // 3. "http://10.0.2.2/smartcart_backend"        -> Android Studio Emulator loopback
     // 4. "http://10.0.2.2:8080/smartcart_backend"   -> Android Studio Emulator alternative port
     val CANDIDATE_URLS = listOf(
+        "https://oasis-fasting-preflight.ngrok-free.dev/smartcart_backend",
         "http://127.0.0.1:8080/smartcart_backend",
+        "http://172.23.48.104/smartcart_backend",
+        "http://172.23.48.104:8080/smartcart_backend",
         "http://172.23.52.172/smartcart_backend",
         "http://172.23.52.172:8080/smartcart_backend",
         "http://172.23.49.142/smartcart_backend",
@@ -44,7 +49,7 @@ object AuthNetworkClient {
     private var detectedBaseUrl: String? = null
 
     fun getActiveUrl(): String {
-        return customBaseUrl ?: detectedBaseUrl ?: CANDIDATE_URLS.first()
+        return (customBaseUrl ?: detectedBaseUrl ?: CANDIDATE_URLS.first()).trimEnd('/')
     }
 
     suspend fun registerUser(name: String, email: String, password: String): AuthResponse {
@@ -90,12 +95,15 @@ object AuthNetworkClient {
 
     suspend fun uploadProfilePhoto(email: String, file: File): AuthResponse {
         return withContext(Dispatchers.IO) {
-            val preferred = customBaseUrl ?: detectedBaseUrl ?: CANDIDATE_URLS.first()
+            val preferred = (customBaseUrl ?: detectedBaseUrl ?: CANDIDATE_URLS.first()).trimEnd('/')
             val urlString = "$preferred/auth/upload_profile.php"
             try {
                 val boundary = "===Boundary===" + System.currentTimeMillis()
                 val url = URL(urlString)
                 val conn = url.openConnection() as HttpURLConnection
+                if (url.host.contains("ngrok", ignoreCase = true)) {
+                    conn.setRequestProperty("ngrok-skip-browser-warning", "true")
+                }
                 conn.requestMethod = "POST"
                 conn.doOutput = true
                 conn.doInput = true
@@ -154,10 +162,11 @@ object AuthNetworkClient {
     }
 
     private fun executeWithFallback(relativeEndpoint: String, jsonParam: JSONObject): AuthResponse {
+        val cleanEndpoint = relativeEndpoint.trimStart('/')
         // If a manual or previously detected working URL exists, try it first
-        val preferred = customBaseUrl ?: detectedBaseUrl
+        val preferred = customBaseUrl?.trimEnd('/') ?: detectedBaseUrl?.trimEnd('/')
         if (preferred != null) {
-            val result = tryPostRequest("$preferred/$relativeEndpoint", jsonParam)
+            val result = tryPostRequest("$preferred/$cleanEndpoint", jsonParam)
             if (result != null) {
                 detectedBaseUrl = preferred
                 return result
@@ -168,11 +177,12 @@ object AuthNetworkClient {
 
         // Try candidate URLs in order
         for (baseUrl in CANDIDATE_URLS) {
-            if (baseUrl == preferred) continue
-            val fullUrl = "$baseUrl/$relativeEndpoint"
+            val cleanBase = baseUrl.trimEnd('/')
+            if (cleanBase == preferred) continue
+            val fullUrl = "$cleanBase/$cleanEndpoint"
             val result = tryPostRequest(fullUrl, jsonParam)
             if (result != null) {
-                detectedBaseUrl = baseUrl
+                detectedBaseUrl = cleanBase
                 return result
             }
         }
@@ -188,9 +198,16 @@ object AuthNetworkClient {
         return try {
             val url = URL(fullUrl)
             conn = url.openConnection() as HttpURLConnection
+            if (url.host.contains("ngrok", ignoreCase = true)) {
+                conn.setRequestProperty("ngrok-skip-browser-warning", "true")
+            }
             conn.requestMethod = "POST"
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
             conn.setRequestProperty("Accept", "application/json")
+            val activeToken = com.simats.smartcart.data.SecureTokenStorage.getToken()
+            if (!activeToken.isNullOrBlank()) {
+                conn.setRequestProperty("Authorization", "Bearer $activeToken")
+            }
             conn.connectTimeout = 3000
             conn.readTimeout = 5000
             conn.doOutput = true
@@ -202,6 +219,9 @@ object AuthNetworkClient {
             os.close()
 
             val responseCode = conn.responseCode
+            if (responseCode == 401) {
+                com.simats.smartcart.data.SecureTokenStorage.clearToken()
+            }
             val inputStream = if (responseCode in 200..299) {
                 conn.inputStream
             } else {
@@ -239,13 +259,114 @@ object AuthNetworkClient {
                 )
             } else null
 
+            val token = if (responseJson.has("token") && !responseJson.isNull("token")) responseJson.getString("token") else null
+            val expiresAt = if (responseJson.has("expires_at") && !responseJson.isNull("expires_at")) responseJson.getString("expires_at") else null
+
+            if (isSuccess && token != null) {
+                com.simats.smartcart.data.SecureTokenStorage.saveToken(token, expiresAt, user?.id)
+            }
+
             AuthResponse(
                 isSuccess = isSuccess,
                 message = message,
-                user = user
+                user = user,
+                token = token,
+                expiresAt = expiresAt
             )
         } catch (e: Exception) {
             // Connection failed for this candidate host
+            null
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    suspend fun logoutUser(): AuthResponse {
+        return withContext(Dispatchers.IO) {
+            val result = executeWithFallback("auth/logout.php", JSONObject())
+            com.simats.smartcart.data.SecureTokenStorage.clearToken()
+            com.simats.smartcart.data.UserAccountRepository.currentUser = null
+            result
+        }
+    }
+
+    suspend fun authenticatedPost(relativeEndpoint: String, jsonParam: JSONObject): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            executeHttpWithFallback(relativeEndpoint, "POST", jsonParam)
+        }
+    }
+
+    suspend fun authenticatedGet(relativeEndpoint: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            executeHttpWithFallback(relativeEndpoint, "GET", null)
+        }
+    }
+
+    private fun executeHttpWithFallback(relativeEndpoint: String, method: String, jsonParam: JSONObject?): JSONObject? {
+        val cleanEndpoint = relativeEndpoint.trimStart('/')
+        val preferred = customBaseUrl?.trimEnd('/') ?: detectedBaseUrl?.trimEnd('/')
+        if (preferred != null) {
+            val result = tryRawHttpRequest("$preferred/$cleanEndpoint", method, jsonParam)
+            if (result != null) {
+                detectedBaseUrl = preferred
+                return result
+            }
+            detectedBaseUrl = null
+        }
+
+        for (baseUrl in CANDIDATE_URLS) {
+            val cleanBase = baseUrl.trimEnd('/')
+            if (cleanBase == preferred) continue
+            val fullUrl = "$cleanBase/$cleanEndpoint"
+            val result = tryRawHttpRequest(fullUrl, method, jsonParam)
+            if (result != null) {
+                detectedBaseUrl = cleanBase
+                return result
+            }
+        }
+        return null
+    }
+
+    private fun tryRawHttpRequest(fullUrl: String, method: String, jsonParam: JSONObject?): JSONObject? {
+        var conn: HttpURLConnection? = null
+        return try {
+            val url = URL(fullUrl)
+            conn = url.openConnection() as HttpURLConnection
+            if (url.host.contains("ngrok", ignoreCase = true)) {
+                conn.setRequestProperty("ngrok-skip-browser-warning", "true")
+            }
+            conn.requestMethod = method
+            conn.setRequestProperty("Accept", "application/json")
+            val token = com.simats.smartcart.data.SecureTokenStorage.getToken()
+            if (!token.isNullOrBlank()) {
+                conn.setRequestProperty("Authorization", "Bearer $token")
+            }
+            conn.connectTimeout = 3000
+            conn.readTimeout = 5000
+
+            if (method.equals("POST", ignoreCase = true) && jsonParam != null) {
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                conn.doOutput = true
+                val os = OutputStreamWriter(conn.outputStream, "UTF-8")
+                os.write(jsonParam.toString())
+                os.flush()
+                os.close()
+            }
+
+            val responseCode = conn.responseCode
+            if (responseCode == 401) {
+                com.simats.smartcart.data.SecureTokenStorage.clearToken()
+            }
+
+            val inputStream = if (responseCode in 200..299) conn.inputStream else conn.errorStream ?: conn.inputStream
+            val reader = BufferedReader(InputStreamReader(inputStream, "UTF-8"))
+            val rawResponse = reader.readText().trim()
+            reader.close()
+
+            if (rawResponse.isNotEmpty()) {
+                JSONObject(rawResponse)
+            } else null
+        } catch (_: Exception) {
             null
         } finally {
             conn?.disconnect()

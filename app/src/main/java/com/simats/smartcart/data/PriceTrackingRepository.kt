@@ -11,6 +11,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
+data class TargetAlertResult(
+    val isSuccess: Boolean,
+    val message: String,
+    val productId: String,
+    val targetPrice: Int? = null,
+    val targetPriceFormatted: String? = null,
+    val isActive: Boolean = true
+)
+
 object PriceTrackingRepository {
     private val cache = ConcurrentHashMap<String, ProductPriceHistory>()
     private val savedTargetPrices = ConcurrentHashMap<String, String>()
@@ -23,26 +32,140 @@ object PriceTrackingRepository {
         savedTargetPrices[productId] = targetPriceFormatted
     }
 
-    fun getCachedOrLocal(product: Product): ProductPriceHistory {
-        return cache[product.id] ?: cache[product.name] ?: product.priceHistory
+    suspend fun saveTargetPriceRemote(productId: String, targetPrice: Int): TargetAlertResult {
+        return withContext(Dispatchers.IO) {
+            if (!SecureTokenStorage.hasValidToken()) {
+                return@withContext TargetAlertResult(
+                    isSuccess = false,
+                    message = "Please log in to set a target price alert.",
+                    productId = productId
+                )
+            }
+            if (targetPrice <= 0 || targetPrice > 10000000) {
+                return@withContext TargetAlertResult(
+                    isSuccess = false,
+                    message = "Target price must be between ₹1 and ₹1,00,00,000.",
+                    productId = productId
+                )
+            }
+
+            val payload = JSONObject().apply {
+                put("product_id", productId)
+                put("target_price", targetPrice)
+            }
+
+            val responseJson = AuthNetworkClient.authenticatedPost("price_tracking/set_alert.php", payload)
+            if (responseJson != null && (responseJson.optBoolean("success", false) || responseJson.optString("status") == "success")) {
+                val formatted = "₹" + java.text.NumberFormat.getIntegerInstance(java.util.Locale("en", "IN")).format(targetPrice)
+                savedTargetPrices[productId] = formatted
+                TargetAlertResult(
+                    isSuccess = true,
+                    message = responseJson.optString("message", "Target price alert saved successfully"),
+                    productId = productId,
+                    targetPrice = targetPrice,
+                    targetPriceFormatted = formatted,
+                    isActive = true
+                )
+            } else {
+                val errorMsg = responseJson?.optString("message") ?: "Failed to save alert. Check network connection."
+                TargetAlertResult(
+                    isSuccess = false,
+                    message = errorMsg,
+                    productId = productId
+                )
+            }
+        }
     }
 
-    suspend fun getLivePriceHistory(product: Product): ProductPriceHistory {
+    suspend fun fetchTargetPriceRemote(productId: String): TargetAlertResult? {
         return withContext(Dispatchers.IO) {
-            val cached = cache[product.id] ?: cache[product.name]
-            if (cached != null && cached.isLiveSynced) {
+            if (!SecureTokenStorage.hasValidToken()) return@withContext null
+            val responseJson = AuthNetworkClient.authenticatedGet("price_tracking/get_alert.php?product_id=$productId")
+            if (responseJson != null && (responseJson.optBoolean("success", false) || responseJson.optString("status") == "success")) {
+                val hasAlert = responseJson.optBoolean("has_alert", false)
+                if (hasAlert) {
+                    val dataObj = responseJson.optJSONObject("data")
+                    if (dataObj != null) {
+                        val tp = dataObj.optInt("target_price", 0)
+                        val formatted = dataObj.optString("target_price_formatted", "₹$tp")
+                        savedTargetPrices[productId] = formatted
+                        return@withContext TargetAlertResult(
+                            isSuccess = true,
+                            message = "Alert found",
+                            productId = productId,
+                            targetPrice = tp,
+                            targetPriceFormatted = formatted,
+                            isActive = dataObj.optInt("is_active", 1) == 1
+                        )
+                    }
+                }
+            }
+            null
+        }
+    }
+
+    suspend fun removeTargetPriceRemote(productId: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            if (!SecureTokenStorage.hasValidToken()) return@withContext false
+            val payload = JSONObject().apply { put("product_id", productId) }
+            val responseJson = AuthNetworkClient.authenticatedPost("price_tracking/remove_alert.php", payload)
+            if (responseJson != null && (responseJson.optBoolean("success", false) || responseJson.optString("status") == "success")) {
+                savedTargetPrices.remove(productId)
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    fun getCachedOrLocal(product: Product, platform: String = "all"): ProductPriceHistory {
+        val cacheKey = "${product.id}_${platform.lowercase()}"
+        val cached = cache[cacheKey]
+            ?: if (platform.equals("all", ignoreCase = true)) {
+                cache[product.id] ?: cache[product.name]
+            } else {
+                null
+            }
+        return cached ?: product.priceHistory
+    }
+
+    suspend fun getLivePriceHistory(
+        product: Product,
+        platform: String = "all",
+        forceRefresh: Boolean = false
+    ): ProductPriceHistory {
+        return withContext(Dispatchers.IO) {
+            val normalizedPlatform = platform.trim().lowercase().ifEmpty { "all" }
+            val cacheKey = "${product.id}_$normalizedPlatform"
+
+            val cached = cache[cacheKey]
+            if (cached != null && cached.isLiveSynced && !forceRefresh && !cached.isError) {
                 return@withContext cached
             }
 
             try {
-                val candidateUrls = AuthNetworkClient.CANDIDATE_URLS
+                val candidateUrls = mutableListOf<String>()
+                AuthNetworkClient.customBaseUrl?.let { candidateUrls.add(it) }
+                candidateUrls.addAll(AuthNetworkClient.CANDIDATE_URLS)
+                candidateUrls.add("http://127.0.0.1/smartcart_backend")
+                candidateUrls.add("http://localhost/smartcart_backend")
+
                 var jsonResult: JSONObject? = null
 
-                for (base in candidateUrls) {
+                val platformParam = if (normalizedPlatform != "all") {
+                    "&platform=${Uri.encode(normalizedPlatform)}"
+                } else {
+                    ""
+                }
+
+                for (base in candidateUrls.distinct()) {
                     try {
-                        val endpoint = "$base/price_tracking/history.php?product_id=${product.id}&product_name=${Uri.encode(product.name)}"
+                        val endpoint = "$base/price_tracking/history.php?product_id=${product.id}$platformParam&product_name=${Uri.encode(product.name)}"
                         val url = URL(endpoint)
                         val conn = url.openConnection() as HttpURLConnection
+                        if (url.host.contains("ngrok", ignoreCase = true)) {
+                            conn.setRequestProperty("ngrok-skip-browser-warning", "true")
+                        }
                         conn.connectTimeout = 3000
                         conn.readTimeout = 3000
                         conn.requestMethod = "GET"
@@ -57,7 +180,7 @@ object PriceTrackingRepository {
                             }
                         }
                     } catch (_: Exception) {
-                        // try next candidate
+                        // try next candidate base URL
                     }
                 }
 
@@ -68,6 +191,17 @@ object PriceTrackingRepository {
                     val curPrice = pObj.optInt("numeric_price", product.numericPrice)
                     val liveSync = jsonResult.optBoolean("live_sync", false)
                     val lastUpdated = jsonResult.optString("last_updated_text", "No historical price observations recorded yet")
+                    val respPlatform = jsonResult.optString("platform", normalizedPlatform)
+                    val historyStatus = jsonResult.optString("history_status", "no_history")
+                    val recordCount = jsonResult.optInt("record_count", 0)
+
+                    val earliestObservation = if (jsonResult.has("earliest_observation") && !jsonResult.isNull("earliest_observation")) {
+                        jsonResult.optString("earliest_observation")
+                    } else null
+
+                    val latestObservation = if (jsonResult.has("latest_observation") && !jsonResult.isNull("latest_observation")) {
+                        jsonResult.optString("latest_observation")
+                    } else null
 
                     val hasHighest = pObj.has("highest_numeric_price") && !pObj.isNull("highest_numeric_price")
                     val highPrice = if (hasHighest) pObj.optInt("highest_numeric_price", curPrice) else curPrice
@@ -107,13 +241,34 @@ object PriceTrackingRepository {
                             val isHigh = item.optBoolean("is_highest", false)
                             val isLow = item.optBoolean("is_lowest", false)
                             val formatted = item.optString("formatted_price", ProductCatalog.formatIndianRupees(priceVal))
+                            val itemPlatform = item.optString("platform", respPlatform)
+                            val obsAt = if (item.has("observed_at") && !item.isNull("observed_at")) item.optString("observed_at") else null
+                            val recDate = if (item.has("recorded_date") && !item.isNull("recorded_date")) item.optString("recorded_date") else null
+                            val origPrice = if (item.has("original_price") && !item.isNull("original_price")) item.optInt("original_price") else null
+                            val discPct = if (item.has("discount_percent") && !item.isNull("discount_percent")) item.optInt("discount_percent") else null
+                            val inStock = item.optBoolean("in_stock", true)
+                            val stockStatus = item.optString("stock_status", "in_stock")
+                            val seller = if (item.has("seller_name") && !item.isNull("seller_name")) item.optString("seller_name") else null
+                            val prodUrl = if (item.has("product_url") && !item.isNull("product_url")) item.optString("product_url") else null
+                            val pItemId = if (item.has("platform_item_id") && !item.isNull("platform_item_id")) item.optString("platform_item_id") else null
+
                             points.add(
                                 PricePoint(
                                     label = lbl,
                                     price = priceVal,
                                     formattedPrice = formatted,
                                     isHighest = isHigh,
-                                    isLowest = isLow
+                                    isLowest = isLow,
+                                    platform = itemPlatform,
+                                    observedAt = obsAt,
+                                    recordedDate = recDate,
+                                    originalPrice = origPrice,
+                                    discountPercent = discPct,
+                                    inStock = inStock,
+                                    stockStatus = stockStatus,
+                                    sellerName = seller,
+                                    productUrl = prodUrl,
+                                    platformItemId = pItemId
                                 )
                             )
                         }
@@ -154,12 +309,22 @@ object PriceTrackingRepository {
                         suggestedTargetPriceFormatted = suggestedTargetFormatted,
                         estimatedNextWeekMinFormatted = predMin,
                         estimatedNextWeekMaxFormatted = predMax,
-                        isLiveSynced = liveSync,
-                        lastUpdatedText = lastUpdated
+                        isLiveSynced = true,
+                        lastUpdatedText = lastUpdated,
+                        platform = respPlatform,
+                        historyStatus = historyStatus,
+                        recordCount = recordCount,
+                        earliestObservation = earliestObservation,
+                        latestObservation = latestObservation,
+                        isError = false,
+                        errorMessage = null
                     )
 
-                    cache[product.id] = history
-                    cache[product.name] = history
+                    cache[cacheKey] = history
+                    if (normalizedPlatform == "all") {
+                        cache[product.id] = history
+                        cache[product.name] = history
+                    }
                     return@withContext history
                 }
             } catch (_: Exception) {
@@ -189,7 +354,12 @@ object PriceTrackingRepository {
                 estimatedNextWeekMinFormatted = "—",
                 estimatedNextWeekMaxFormatted = "—",
                 isLiveSynced = false,
-                lastUpdatedText = "Unable to connect to price history server (Offline)"
+                lastUpdatedText = "Unable to connect to price history server (Offline)",
+                platform = normalizedPlatform,
+                historyStatus = "no_history",
+                recordCount = 0,
+                isError = true,
+                errorMessage = "Unable to connect to price history server. Please verify your connection."
             )
         }
     }

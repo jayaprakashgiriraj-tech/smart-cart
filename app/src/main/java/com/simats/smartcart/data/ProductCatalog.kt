@@ -61,7 +61,17 @@ data class PricePoint(
     val price: Int,
     val formattedPrice: String,
     val isHighest: Boolean = false,
-    val isLowest: Boolean = false
+    val isLowest: Boolean = false,
+    val platform: String = "all",
+    val observedAt: String? = null,
+    val recordedDate: String? = null,
+    val originalPrice: Int? = null,
+    val discountPercent: Int? = null,
+    val inStock: Boolean = true,
+    val stockStatus: String = "in_stock",
+    val sellerName: String? = null,
+    val productUrl: String? = null,
+    val platformItemId: String? = null
 )
 
 data class ProductPriceHistory(
@@ -86,7 +96,14 @@ data class ProductPriceHistory(
     val estimatedNextWeekMinFormatted: String = "—",
     val estimatedNextWeekMaxFormatted: String = "—",
     val isLiveSynced: Boolean = false,
-    val lastUpdatedText: String = "No historical price observations recorded yet"
+    val lastUpdatedText: String = "No historical price observations recorded yet",
+    val platform: String = "all",
+    val historyStatus: String = if (pricePoints.isEmpty()) "no_history" else if (pricePoints.size < 3) "insufficient_history" else "available",
+    val recordCount: Int = pricePoints.size,
+    val earliestObservation: String? = null,
+    val latestObservation: String? = null,
+    val isError: Boolean = false,
+    val errorMessage: String? = null
 )
 
 val Product.priceHistory: ProductPriceHistory
