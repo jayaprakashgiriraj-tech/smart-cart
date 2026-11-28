@@ -904,11 +904,27 @@ fun FullProductOverviewScreen(
             val hasAmzApp = remember { StoreComparisonRepository.getInstalledAmazonPackage(context) != null }
             val hasFlpApp = remember { StoreComparisonRepository.isFlipkartInstalled(context) }
 
+            // Short explanation that retailer's website displays current live price
+            Text(
+                text = "Current live prices and bank deals are displayed directly on official retailer websites.",
+                fontSize = 11.sp,
+                color = Color(0xFF5A6478),
+                fontWeight = FontWeight.Medium,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Open in Flipkart Button
+                val flpLabel = when {
+                    storeComp.flipkart.isExactMatch -> "Check Flipkart Price"
+                    storeComp.flipkart.isVariantMismatch -> "Check Flipkart (Variant Differs)"
+                    else -> "Search on Flipkart"
+                }
+
                 Button(
                     onClick = {
                         StoreComparisonRepository.openFlipkart(
@@ -921,7 +937,9 @@ fun FullProductOverviewScreen(
                         .weight(1f)
                         .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2874F0)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (storeComp.flipkart.isVariantMismatch) Color(0xFFD97706) else Color(0xFF2874F0)
+                    ),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
                     Icon(
@@ -932,8 +950,8 @@ fun FullProductOverviewScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (hasFlpApp) "Open Flipkart App" else "Open in Flipkart",
-                        fontSize = 11.5.sp,
+                        text = flpLabel,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         maxLines = 1
@@ -941,6 +959,12 @@ fun FullProductOverviewScreen(
                 }
 
                 // Open in Amazon Button
+                val amzLabel = when {
+                    storeComp.amazon.isExactMatch -> "Check Amazon Price"
+                    storeComp.amazon.isVariantMismatch -> "Check Amazon (Variant Differs)"
+                    else -> "Search on Amazon"
+                }
+
                 Button(
                     onClick = {
                         StoreComparisonRepository.openAmazon(
@@ -953,7 +977,9 @@ fun FullProductOverviewScreen(
                         .weight(1f)
                         .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9900)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (storeComp.amazon.isVariantMismatch) Color(0xFFD97706) else Color(0xFFFF9900)
+                    ),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
                     Icon(
@@ -964,8 +990,8 @@ fun FullProductOverviewScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (hasAmzApp) "Open Amazon App" else "Open in Amazon",
-                        fontSize = 11.5.sp,
+                        text = amzLabel,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111111),
                         maxLines = 1
@@ -998,7 +1024,7 @@ fun FullProductOverviewScreen(
                     contentPadding = PaddingValues(horizontal = 6.dp)
                 ) {
                     Text(
-                        text = "Open Croma (${storeComp.croma.formattedPrice}) ↗",
+                        text = "Search on Croma ↗",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
@@ -1023,7 +1049,7 @@ fun FullProductOverviewScreen(
                     contentPadding = PaddingValues(horizontal = 6.dp)
                 ) {
                     Text(
-                        text = "Open Reliance (${storeComp.relianceDigital.formattedPrice}) ↗",
+                        text = "Search on Reliance ↗",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1

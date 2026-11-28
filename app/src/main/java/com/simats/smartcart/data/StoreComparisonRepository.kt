@@ -14,6 +14,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
+enum class RetailerLinkType {
+    EXACT_MATCH,
+    VARIANT_MISMATCH,
+    SEARCH_FALLBACK
+}
+
 data class StorePriceInfo(
     val storeName: String,
     val shortName: String,
@@ -36,8 +42,18 @@ data class StorePriceInfo(
     val dataSource: String? = null,
     val isStale: Boolean = false,
     val rawPrice: Int? = null,
-    val isCheapestNullable: Boolean? = null
-)
+    val isCheapestNullable: Boolean? = null,
+    val linkType: RetailerLinkType = RetailerLinkType.SEARCH_FALLBACK
+) {
+    val isExactMatch: Boolean
+        get() = linkType == RetailerLinkType.EXACT_MATCH
+
+    val isVariantMismatch: Boolean
+        get() = linkType == RetailerLinkType.VARIANT_MISMATCH
+
+    val isSearchFallback: Boolean
+        get() = linkType == RetailerLinkType.SEARCH_FALLBACK
+}
 
 data class ProductStoreComparison(
     val productId: String,
@@ -300,33 +316,28 @@ object StoreComparisonRepository {
                 }
             }
 
-            // Query secure PHP Backend Proxy for live marketplace store comparison
+            // Query secure PHP Backend Proxy for live marketplace store comparison (Strictly genuine integrations/compare_prices.php endpoint; legacy mock fallback permanently removed)
             for (baseUrl in AuthNetworkClient.CANDIDATE_URLS) {
-                val endpoints = listOf(
-                    "$baseUrl/integrations/compare_prices.php?product_name=${Uri.encode(product.name)}&product_id=${product.id}",
-                    "$baseUrl/products/compare_stores.php?product_name=${Uri.encode(product.name)}&product_id=${product.id}"
-                )
-                for (endpoint in endpoints) {
-                    try {
-                        val url = URL(endpoint)
-                        val conn = url.openConnection() as HttpURLConnection
-                        conn.connectTimeout = 4000
-                        conn.readTimeout = 4000
-                        conn.requestMethod = "GET"
+                val endpoint = "$baseUrl/integrations/compare_prices.php?product_name=${Uri.encode(product.name)}&product_id=${product.id}"
+                try {
+                    val url = URL(endpoint)
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 4000
+                    conn.readTimeout = 4000
+                    conn.requestMethod = "GET"
 
-                        if (conn.responseCode in 200..299) {
-                            val reader = BufferedReader(InputStreamReader(conn.inputStream))
-                            val responseText = reader.use { it.readText() }
-                            val json = JSONObject(responseText)
-                            val comp = parseJsonComparison(product, json)
-                            val cacheEntry = CacheEntry(comp, System.currentTimeMillis())
-                            cache[product.id] = cacheEntry
-                            cache[product.name] = cacheEntry
-                            return@withContext comp
-                        }
-                    } catch (_: Exception) {
-                        // try next endpoint or host candidate
+                    if (conn.responseCode in 200..299) {
+                        val reader = BufferedReader(InputStreamReader(conn.inputStream))
+                        val responseText = reader.use { it.readText() }
+                        val json = JSONObject(responseText)
+                        val comp = parseJsonComparison(product, json)
+                        val cacheEntry = CacheEntry(comp, System.currentTimeMillis())
+                        cache[product.id] = cacheEntry
+                        cache[product.name] = cacheEntry
+                        return@withContext comp
                     }
+                } catch (_: Exception) {
+                    // try next host candidate
                 }
             }
 
@@ -338,6 +349,80 @@ object StoreComparisonRepository {
         }
     }
 
+    // Known variant-mismatched product IDs on Flipkart (from Day 3 verification audit)
+    val KNOWN_VARIANT_MISMATCH_FLIPKART = setOf("mob_s23", "lap_asusrog", "lap_lenovoidea")
+
+    fun isDirectProductLink(url: String): Boolean {
+        val lower = url.lowercase().trim()
+        val isAmz = (lower.contains("amazon.in/dp/") || lower.contains("amazon.in/gp/product/")) &&
+                !lower.contains("/s?k=") && !lower.contains("asin_")
+        val isFlp = lower.contains("flipkart.com/") && lower.contains("/p/") &&
+                !lower.contains("/search?q=") && !lower.contains("flp_")
+        return isAmz || isFlp
+    }
+
+    fun encodeQueryParam(text: String): String {
+        return try {
+            java.net.URLEncoder.encode(text, "UTF-8").replace("+", "%20")
+        } catch (_: Exception) {
+            text.replace(" ", "%20")
+        }
+    }
+
+    fun resolveRetailerUrl(
+        productId: String,
+        shortName: String,
+        productName: String,
+        backendUrl: String? = null
+    ): Pair<String, RetailerLinkType> {
+        val cleanBackend = backendUrl?.trim()
+        val isBackendDirect = !cleanBackend.isNullOrBlank() &&
+                isDirectProductLink(cleanBackend) &&
+                !cleanBackend.contains("/s?k=") &&
+                !cleanBackend.contains("/search?q=")
+
+        // 1. Backend direct URL takes highest precedence if present and direct
+        if (isBackendDirect) {
+            val isVariant = shortName.equals("Flipkart", ignoreCase = true) && productId in KNOWN_VARIANT_MISMATCH_FLIPKART
+            val linkType = if (isVariant) RetailerLinkType.VARIANT_MISMATCH else RetailerLinkType.EXACT_MATCH
+            return Pair(cleanBackend!!, linkType)
+        }
+
+        // 2. Resolve from local verified REAL_STORE_CATALOG
+        val entry = REAL_STORE_CATALOG[productId]
+            ?: REAL_STORE_CATALOG.entries.find { it.key.equals(productName, ignoreCase = true) }?.value
+
+        val catalogUrl = when (shortName) {
+            "Amazon" -> entry?.amazonUrl
+            "Flipkart" -> entry?.flipkartUrl
+            else -> null
+        }?.trim()
+
+        if (!catalogUrl.isNullOrBlank() && isDirectProductLink(catalogUrl)) {
+            val isVariant = shortName.equals("Flipkart", ignoreCase = true) && productId in KNOWN_VARIANT_MISMATCH_FLIPKART
+            val linkType = if (isVariant) RetailerLinkType.VARIANT_MISMATCH else RetailerLinkType.EXACT_MATCH
+            return Pair(catalogUrl, linkType)
+        }
+
+        // 3. Fallback to honest retailer search query
+        val searchUrl = when (shortName) {
+            "Amazon" -> "https://www.amazon.in/s?k=" + encodeQueryParam(productName)
+            "Flipkart" -> "https://www.flipkart.com/search?q=" + encodeQueryParam(productName)
+            "Croma" -> "https://www.croma.com/searchB?q=" + encodeQueryParam(productName)
+            "Reliance Digital", "Reliance" -> "https://www.reliancedigital.in/search?q=" + encodeQueryParam(productName)
+            else -> "https://www.google.com/search?q=" + encodeQueryParam("$productName $shortName")
+        }
+        return Pair(searchUrl, RetailerLinkType.SEARCH_FALLBACK)
+    }
+
+    fun getVerifiedRetailerUrl(productId: String, shortName: String, productName: String): String {
+        return resolveRetailerUrl(productId, shortName, productName).first
+    }
+
+    fun getRetailerLinkType(productId: String, shortName: String, url: String? = null): RetailerLinkType {
+        return resolveRetailerUrl(productId, shortName, "", url).second
+    }
+
     private fun parseSingleStore(
         storeObj: JSONObject?,
         defaultStoreName: String,
@@ -346,12 +431,18 @@ object StoreComparisonRepository {
         defaultAccent: String,
         product: Product
     ): StorePriceInfo {
+        val rawBackendUrl = if (storeObj != null && storeObj.has("buy_url") && !storeObj.isNull("buy_url")) {
+            storeObj.optString("buy_url", "").trim().ifBlank { null }
+        } else null
+
+        val (resolvedUrl, linkType) = resolveRetailerUrl(
+            productId = product.id,
+            shortName = defaultShortName,
+            productName = product.name,
+            backendUrl = rawBackendUrl
+        )
+
         if (storeObj == null) {
-            val searchUrl = if (defaultShortName == "Amazon") {
-                "https://www.amazon.in/s?k=" + Uri.encode(product.name)
-            } else {
-                "https://www.flipkart.com/search?q=" + Uri.encode(product.name)
-            }
             return StorePriceInfo(
                 storeName = defaultStoreName,
                 shortName = defaultShortName,
@@ -364,17 +455,18 @@ object StoreComparisonRepository {
                 isCheapest = false,
                 rating = "—",
                 ratingsCount = "",
-                delivery = "Currently unavailable",
+                delivery = if (linkType == RetailerLinkType.EXACT_MATCH) "Verified direct link · Current price on site" else "Currently unavailable",
                 seller = "—",
                 offer = "",
-                buyUrl = searchUrl,
+                buyUrl = resolvedUrl,
                 appPackage = defaultPackage,
                 accentColorHex = defaultAccent,
                 available = false,
                 dataSource = "unavailable",
                 isStale = false,
                 rawPrice = null,
-                isCheapestNullable = null
+                isCheapestNullable = null,
+                linkType = linkType
             )
         }
 
@@ -443,13 +535,6 @@ object StoreComparisonRepository {
             storeObj.optString("offer", "")
         } else ""
 
-        val fallbackSearch = if (shortName == "Amazon") {
-            "https://www.amazon.in/s?k=" + Uri.encode(product.name)
-        } else {
-            "https://www.flipkart.com/search?q=" + Uri.encode(product.name)
-        }
-        val buyUrl = storeObj.optString("buy_url", fallbackSearch).ifBlank { fallbackSearch }
-
         val appPackage = storeObj.optString("app_package", defaultPackage)
         val accentColor = storeObj.optString("accent_color", defaultAccent)
 
@@ -468,14 +553,15 @@ object StoreComparisonRepository {
             delivery = delivery,
             seller = seller,
             offer = offer,
-            buyUrl = buyUrl,
+            buyUrl = resolvedUrl,
             appPackage = appPackage,
             accentColorHex = accentColor,
             available = isAvailable,
             dataSource = dataSource,
             isStale = isStale,
             rawPrice = rawPrice,
-            isCheapestNullable = isCheapestNullable
+            isCheapestNullable = isCheapestNullable,
+            linkType = linkType
         )
     }
 
@@ -509,7 +595,8 @@ object StoreComparisonRepository {
             dataSource = "unsupported",
             isStale = false,
             rawPrice = null,
-            isCheapestNullable = null
+            isCheapestNullable = null,
+            linkType = RetailerLinkType.SEARCH_FALLBACK
         )
     }
 
@@ -700,6 +787,15 @@ object StoreComparisonRepository {
             "$pct% off"
         } else ""
 
+        val amzLinkType = if (isDirectProductLink(entry.amazonUrl)) RetailerLinkType.EXACT_MATCH else RetailerLinkType.SEARCH_FALLBACK
+        val flpLinkType = if (productId in KNOWN_VARIANT_MISMATCH_FLIPKART) {
+            RetailerLinkType.VARIANT_MISMATCH
+        } else if (isDirectProductLink(entry.flipkartUrl)) {
+            RetailerLinkType.EXACT_MATCH
+        } else {
+            RetailerLinkType.SEARCH_FALLBACK
+        }
+
         val amz = StorePriceInfo(
             storeName = "Amazon India",
             shortName = "Amazon",
@@ -722,7 +818,8 @@ object StoreComparisonRepository {
             dataSource = "offline_seed",
             isStale = true,
             rawPrice = amzPrice,
-            isCheapestNullable = null
+            isCheapestNullable = null,
+            linkType = amzLinkType
         )
 
         val flp = StorePriceInfo(
@@ -747,7 +844,8 @@ object StoreComparisonRepository {
             dataSource = "offline_seed",
             isStale = true,
             rawPrice = flpPrice,
-            isCheapestNullable = null
+            isCheapestNullable = null,
+            linkType = flpLinkType
         )
 
         val croma = StorePriceInfo(
@@ -772,7 +870,8 @@ object StoreComparisonRepository {
             dataSource = "unsupported",
             isStale = false,
             rawPrice = null,
-            isCheapestNullable = null
+            isCheapestNullable = null,
+            linkType = RetailerLinkType.SEARCH_FALLBACK
         )
 
         val reliance = StorePriceInfo(
@@ -797,7 +896,8 @@ object StoreComparisonRepository {
             dataSource = "unsupported",
             isStale = false,
             rawPrice = null,
-            isCheapestNullable = null
+            isCheapestNullable = null,
+            linkType = RetailerLinkType.SEARCH_FALLBACK
         )
 
         return ProductStoreComparison(

@@ -280,6 +280,35 @@ fun AmazonFlipkartCompareCard(
                 }
             }
 
+            if (!hasValidComparison) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFFF3F5FA),
+                    border = BorderStroke(1.dp, Color(0xFFE2E6F0))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = Color(0xFF5050F0),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Retailer websites display current live prices and bank deals. Tap to view official listings directly.",
+                            fontSize = 10.5.sp,
+                            color = Color(0xFF4B5565),
+                            lineHeight = 14.sp
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(14.dp))
 
             // View Mode Toggle (All Stores List vs Cards)
@@ -590,10 +619,12 @@ private fun StorePriceRowItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                val deliveryText = if (!isStoreAvailable) {
-                    if (storeInfo.shortName in listOf("Croma", "Reliance")) "Search directly on store" else "Currently unavailable on store"
-                } else {
-                    if (storeInfo.delivery.isNotBlank() && storeInfo.delivery != "—") storeInfo.delivery else "Delivery information unavailable"
+                val deliveryText = when {
+                    isStoreAvailable -> if (storeInfo.delivery.isNotBlank() && storeInfo.delivery != "—") storeInfo.delivery else "Standard delivery available"
+                    storeInfo.isVariantMismatch -> "Product variant differs on store · Current price on site"
+                    storeInfo.isExactMatch -> "Verified direct link · Current price on site"
+                    storeInfo.shortName in listOf("Croma", "Reliance") -> "Direct search on store"
+                    else -> "Retailer search query · Direct link pending"
                 }
 
                 Text(
@@ -648,26 +679,46 @@ private fun StorePriceRowItem(
             Spacer(modifier = Modifier.width(10.dp))
 
             // Right: Buy or Search Action Button
-            val buttonLabel = if (isStoreAvailable) "Buy" else "Search"
+            val buttonLabel = when {
+                isStoreAvailable -> "Buy"
+                storeInfo.isExactMatch && storeInfo.shortName == "Amazon" -> "Check Amazon Price"
+                storeInfo.isExactMatch && storeInfo.shortName == "Flipkart" -> "Check Flipkart Price"
+                storeInfo.isExactMatch -> "Check Price"
+                storeInfo.isVariantMismatch -> "Check (Variant Differs)"
+                else -> "Search on ${storeInfo.shortName}"
+            }
+            val buttonBg = when {
+                isStoreAvailable -> storeBrandColor
+                storeInfo.isExactMatch && storeInfo.shortName == "Amazon" -> Color(0xFFFF9900)
+                storeInfo.isExactMatch && storeInfo.shortName == "Flipkart" -> Color(0xFF2874F0)
+                storeInfo.isExactMatch -> storeBrandColor
+                storeInfo.isVariantMismatch -> Color(0xFFD97706)
+                else -> Color(0xFF6B7280)
+            }
+            val buttonTextColor = when {
+                (isStoreAvailable || storeInfo.isExactMatch) && storeInfo.shortName == "Amazon" -> Color(0xFF111111)
+                else -> Color.White
+            }
             Button(
                 onClick = onBuyClick,
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (isStoreAvailable) storeBrandColor else Color(0xFF6B7280)),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = buttonBg),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 modifier = Modifier.height(34.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = buttonLabel,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isStoreAvailable && storeInfo.shortName == "Amazon") Color(0xFF111111) else Color.White
+                        color = buttonTextColor,
+                        maxLines = 1
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                         contentDescription = null,
-                        tint = if (isStoreAvailable && storeInfo.shortName == "Amazon") Color(0xFF111111) else Color.White,
+                        tint = buttonTextColor,
                         modifier = Modifier.size(11.dp)
                     )
                 }
@@ -924,10 +975,12 @@ private fun StoreDetailCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             // Delivery Info
-            val cardDelivery = if (!isStoreAvailable) {
-                if (storeInfo.shortName in listOf("Croma", "Reliance")) "Search directly on store" else "Currently unavailable"
-            } else {
-                if (storeInfo.delivery.isNotBlank() && storeInfo.delivery != "—") storeInfo.delivery else "Delivery information unavailable"
+            val cardDelivery = when {
+                isStoreAvailable -> if (storeInfo.delivery.isNotBlank() && storeInfo.delivery != "—") storeInfo.delivery else "Delivery information unavailable"
+                storeInfo.isVariantMismatch -> "Product variant differs on store · Current price shown on site"
+                storeInfo.isExactMatch -> "Verified direct product page · Current price shown on site"
+                storeInfo.shortName in listOf("Croma", "Reliance") -> "Search directly on store"
+                else -> "Retailer search query · Direct link pending"
             }
 
             Text(
@@ -965,12 +1018,30 @@ private fun StoreDetailCard(
 
             // Buy Action Button
             val buttonText = when {
+                !isStoreAvailable && storeInfo.isExactMatch && isAmazon -> "Check Amazon Price"
+                !isStoreAvailable && storeInfo.isExactMatch && isFlipkart -> "Check Flipkart Price"
+                !isStoreAvailable && storeInfo.isExactMatch -> "Check ${storeInfo.shortName} Price"
+                !isStoreAvailable && storeInfo.isVariantMismatch -> "Check ${storeInfo.shortName} (Variant Differs)"
                 !isStoreAvailable -> "Search on ${storeInfo.shortName}"
                 isAmazon && hasApp -> "Open Amazon App"
                 isAmazon -> "Buy on Amazon"
                 isFlipkart && hasApp -> "Open Flipkart App"
                 isFlipkart -> "Buy on Flipkart"
                 else -> "Buy on ${storeInfo.shortName}"
+            }
+
+            val cardButtonBg = when {
+                isStoreAvailable -> storeBrandColor
+                storeInfo.isExactMatch && isAmazon -> Color(0xFFFF9900)
+                storeInfo.isExactMatch && isFlipkart -> Color(0xFF2874F0)
+                storeInfo.isExactMatch -> storeBrandColor
+                storeInfo.isVariantMismatch -> Color(0xFFD97706)
+                else -> Color(0xFF6B7280)
+            }
+
+            val cardButtonTextColor = when {
+                (isStoreAvailable || storeInfo.isExactMatch) && isAmazon -> Color(0xFF111111)
+                else -> Color.White
             }
 
             Button(
@@ -980,7 +1051,7 @@ private fun StoreDetailCard(
                     .height(38.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isStoreAvailable) storeBrandColor else Color(0xFF6B7280)
+                    containerColor = cardButtonBg
                 ),
                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
             ) {
@@ -992,14 +1063,14 @@ private fun StoreDetailCard(
                         text = buttonText,
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isStoreAvailable && isAmazon) Color(0xFF111111) else Color.White,
+                        color = cardButtonTextColor,
                         maxLines = 1
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
                         contentDescription = null,
-                        tint = if (isStoreAvailable && isAmazon) Color(0xFF111111) else Color.White,
+                        tint = cardButtonTextColor,
                         modifier = Modifier.size(12.dp)
                     )
                 }
